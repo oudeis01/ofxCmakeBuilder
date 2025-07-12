@@ -75,8 +75,20 @@ cat > "$SCRIPTS_DIR/buildAllExamples_cmake.sh" << 'EOF'
 
 export LC_ALL=C
 
+# Get CPU count for parallel builds
+get_cpu_count() {
+    if command -v nproc >/dev/null 2>&1; then
+        nproc
+    elif [ "$(uname)" = "Darwin" ]; then
+        sysctl -n hw.ncpu
+    else
+        echo "4"  # fallback
+    fi
+}
+
 SCRIPT_DIR="$(cd $(dirname $0); pwd)"
 OF_ROOT="$(cd $(dirname $0)/../..; pwd -P)"
+CPU_COUNT=$(get_cpu_count)
 
 echo "Building all openFrameworks examples with CMake..."
 echo "openFrameworks root: $OF_ROOT"
@@ -111,7 +123,7 @@ for category in $(find "$OF_ROOT/examples" -maxdepth 1 -type d); do
             # Build
             mkdir -p build
             cd build
-            if cmake .. > /dev/null 2>&1 && make -j$(nproc) > /dev/null 2>&1; then
+            if cmake .. > /dev/null 2>&1 && make -j$CPU_COUNT > /dev/null 2>&1; then
                 echo "    Success: $EXAMPLE_NAME"
                 SUCCESS=$((SUCCESS + 1))
             else
@@ -174,7 +186,7 @@ echo ""
 echo "2. Build a project:"
 echo "   cd examples/3d/3DPrimitivesExample"
 echo "   mkdir build && cd build"
-echo "   cmake .. && make -j$(nproc)"
+echo "   cmake .. && make -j4"
 echo "   make run"
 echo ""
 echo "3. Test all examples:"

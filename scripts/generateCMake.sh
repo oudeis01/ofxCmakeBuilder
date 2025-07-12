@@ -112,5 +112,5 @@ else
     generate_cmakelists "$PROJECT_DIR"
     echo "   Done! You can now build with:"
     echo "   cd $PROJECT_DIR && mkdir -p build && cd build"
-    echo "   cmake .. && make -j$(nproc)"
+    echo "   cmake .. && make -j4"
 fi
