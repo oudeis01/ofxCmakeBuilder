@@ -1,6 +1,6 @@
-# openFrameworks CMake System 🚀
+# openFrameworks CMake System
 
-A revolutionary modular CMake build system for openFrameworks that dramatically simplifies project configuration and provides 4x faster build times.
+A modular CMake build system for openFrameworks
 
 ## Features
 
