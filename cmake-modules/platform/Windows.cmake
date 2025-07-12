@@ -2,7 +2,7 @@
 # Windows Platform Configuration for openFrameworks  
 # ================================================================================
 
-message(STATUS "🪟 Configuring for Windows platform...")
+message(STATUS "   Configuring for Windows platform...")
 
 function(of_configure_platform target_name)
     # Compiler options for Windows
@@ -24,5 +24,5 @@ function(of_configure_platform target_name)
         "${OF_ROOT}/libs/fmod/lib/${OF_PLATFORM}/fmod_vc.lib"
     )
     
-    message(STATUS "✅ Windows platform configuration complete")
+    message(STATUS "   Windows platform configuration complete")
 endfunction()

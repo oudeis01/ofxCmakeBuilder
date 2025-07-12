@@ -2,7 +2,7 @@
 # macOS Platform Configuration for openFrameworks
 # ================================================================================
 
-message(STATUS "🍎 Configuring for macOS platform...")
+message(STATUS "   Configuring for macOS platform...")
 
 function(of_configure_platform target_name)
     # Compiler options for macOS
@@ -37,5 +37,5 @@ function(of_configure_platform target_name)
         "${OF_ROOT}/libs/fmod/lib/${OF_PLATFORM}/libfmod.dylib"
     )
     
-    message(STATUS "✅ macOS platform configuration complete")
+    message(STATUS "   macOS platform configuration complete")
 endfunction()

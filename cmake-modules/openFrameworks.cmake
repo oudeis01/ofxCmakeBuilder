@@ -1,4 +1,4 @@
-# ================================================================================
+# ===================================
 # openFrameworks CMake Module
 # 
 # This file provides a centralized configuration for all openFrameworks projects.
@@ -7,7 +7,7 @@
 # Usage in project CMakeLists.txt:
 #   include(path/to/openFrameworks.cmake)
 #   of_setup_project()
-# ================================================================================
+# ===================================
 
 cmake_minimum_required(VERSION 3.10)
 
@@ -17,26 +17,26 @@ if(DEFINED OF_CMAKE_LOADED)
 endif()
 set(OF_CMAKE_LOADED TRUE)
 
-message(STATUS "🚀 Loading openFrameworks CMake Module...")
+message(STATUS "Loading openFrameworks CMake Module...")
 
-# ================================================================================
+# ===================================
 # Core Configuration
-# ================================================================================
+# ===================================
 
 # Find openFrameworks root directory
 if(NOT DEFINED OF_ROOT)
     get_filename_component(OF_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 endif()
 
-message(STATUS "📁 openFrameworks root: ${OF_ROOT}")
+message(STATUS "openFrameworks root: ${OF_ROOT}")
 
 # C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ================================================================================
+# ===================================
 # Platform Detection
-# ================================================================================
+# ===================================
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
@@ -52,11 +52,11 @@ else()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
 endif()
 
-message(STATUS "🔧 Platform: ${OF_PLATFORM}")
+message(STATUS "Platform: ${OF_PLATFORM}")
 
-# ================================================================================
+# ===================================
 # Precompiled Library Detection
-# ================================================================================
+# ===================================
 
 set(OF_CORE_LIB_PATH "${OF_ROOT}/libs/openFrameworksCompiled/lib/${OF_PLATFORM}")
 set(OF_CORE_LIB_DEBUG "${OF_CORE_LIB_PATH}/libopenFrameworksDebug.a")
@@ -66,11 +66,11 @@ set(OF_CORE_LIB_RELEASE "${OF_CORE_LIB_PATH}/libopenFrameworks.a")
 if(EXISTS ${OF_CORE_LIB_DEBUG})
     set(OF_CORE_LIB "${OF_CORE_LIB_DEBUG}")
     set(OF_USING_DEBUG TRUE)
-    message(STATUS "📦 Using Debug openFrameworks library")
+    message(STATUS "Using Debug openFrameworks library")
 elseif(EXISTS ${OF_CORE_LIB_RELEASE})
     set(OF_CORE_LIB "${OF_CORE_LIB_RELEASE}")
     set(OF_USING_DEBUG FALSE)
-    message(STATUS "📦 Using Release openFrameworks library")
+    message(STATUS "Using Release openFrameworks library")
 else()
     message(FATAL_ERROR 
         "❌ openFrameworks library not found!\n"
@@ -78,19 +78,19 @@ else()
         "Please run: scripts/linux/compileOF.sh")
 endif()
 
-# ================================================================================
+# ===================================
 # Include Platform-Specific Configuration
-# ================================================================================
+# ===================================
 
 include("${CMAKE_CURRENT_LIST_DIR}/platform/${CMAKE_SYSTEM_NAME}.cmake")
 
-# ================================================================================
+# ===================================
 # Core Functions
-# ================================================================================
+# ===================================
 
 # Main setup function that projects call
 function(of_setup_project)
-    message(STATUS "⚙️  Setting up openFrameworks project: ${PROJECT_NAME}")
+    message(STATUS "Setting up openFrameworks project: ${PROJECT_NAME}")
     
     # Collect project sources
     file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.c" "src/*.cc")
@@ -110,9 +110,9 @@ function(of_setup_project)
     # Setup build output
     of_setup_build_output(${PROJECT_NAME})
     
-    message(STATUS "✅ ${PROJECT_NAME} configured successfully!")
-    message(STATUS "   📚 Using precompiled library: ${OF_CORE_LIB}")
-    message(STATUS "   ⚡ Build should complete in < 1 second!")
+    message(STATUS "${PROJECT_NAME} configured successfully!")
+    message(STATUS "   Using precompiled library: ${OF_CORE_LIB}")
+    message(STATUS "   Build should complete in < 1 second!")
 endfunction()
 
 # Configure target with openFrameworks settings
@@ -155,7 +155,7 @@ endfunction()
 function(of_process_addons target_name)
     set(addons_file "${CMAKE_CURRENT_SOURCE_DIR}/addons.make")
     if(EXISTS ${addons_file})
-        message(STATUS "📋 Processing addons.make...")
+        message(STATUS "Processing addons.make...")
         file(STRINGS ${addons_file} ADDON_LINES)
         
         foreach(LINE ${ADDON_LINES})
@@ -171,7 +171,7 @@ endfunction()
 function(of_add_addon target_name addon_name)
     set(addon_path "${OF_ROOT}/addons/${addon_name}")
     if(EXISTS ${addon_path})
-        message(STATUS "  📦 Adding addon: ${addon_name}")
+        message(STATUS "     Adding addon: ${addon_name}")
         
         # Add addon source files recursively
         file(GLOB_RECURSE ADDON_SOURCES "${addon_path}/src/*.cpp" "${addon_path}/src/*.c")
@@ -246,7 +246,7 @@ function(of_add_addon target_name addon_name)
         
         # Process addon_config.mk if exists (enhanced for dependencies)
         if(EXISTS "${addon_path}/addon_config.mk")
-            message(STATUS "    🔧 Processing addon_config.mk for ${addon_name}")
+            message(STATUS "       Processing addon_config.mk for ${addon_name}")
             
             # Parse addon_config.mk for platform-specific exclusions
             file(STRINGS "${addon_path}/addon_config.mk" CONFIG_LINES)
@@ -291,7 +291,7 @@ function(of_add_addon target_name addon_name)
             endif()
         endif()
         
-        message(STATUS "    ✅ Successfully added addon: ${addon_name}")
+        message(STATUS "       Successfully added addon: ${addon_name}")
     else()
         message(WARNING "⚠️  Addon not found: ${addon_name} (${addon_path})")
     endif()
@@ -302,7 +302,7 @@ function(of_setup_build_output target_name)
     # Create bin directory
     add_custom_command(TARGET ${target_name} PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/bin"
-        COMMENT "📁 Creating bin directory"
+        COMMENT "   Creating bin directory"
     )
     
     # Copy executable to bin folder and remove from build folder
@@ -310,26 +310,19 @@ function(of_setup_build_output target_name)
         COMMAND ${CMAKE_COMMAND} -E copy
         "$<TARGET_FILE:${target_name}>"
         "${CMAKE_CURRENT_SOURCE_DIR}/bin/$<TARGET_FILE_NAME:${target_name}>"
-        COMMENT "📋 Copying executable to bin folder"
+        COMMENT "   Copying executable to bin folder"
     )
     
     # Remove executable from build folder (keep build clean)
     add_custom_command(TARGET ${target_name} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E remove "$<TARGET_FILE:${target_name}>"
-        COMMENT "🧹 Cleaning build folder (removing executable)"
+        COMMENT "   Cleaning build folder (removing executable)"
     )
     
     # Print completion message with run instructions
     add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo ""
-        COMMAND ${CMAKE_COMMAND} -E echo "🎉 ============================================="
-        COMMAND ${CMAKE_COMMAND} -E echo "✅ Build completed successfully!"
-        COMMAND ${CMAKE_COMMAND} -E echo "📁 Executable: bin/${target_name}"
-        COMMAND ${CMAKE_COMMAND} -E echo "🚀 To run: make run"
-        COMMAND ${CMAKE_COMMAND} -E echo "🚀 Or directly: ./bin/${target_name}"
-        COMMAND ${CMAKE_COMMAND} -E echo "============================================="
-        COMMAND ${CMAKE_COMMAND} -E echo ""
-        COMMENT "🎯 Build completion message"
+        COMMAND ${CMAKE_COMMAND} -E echo "Build completed"
+        COMMENT "Build completion"
     )
     
     # Add 'run' target for convenience
@@ -344,9 +337,9 @@ function(of_setup_build_output target_name)
     add_dependencies(run ${target_name})
 endfunction()
 
-# ================================================================================
+# ===================================
 # Convenience Functions for External Libraries
-# ================================================================================
+# ===================================
 
 # Easy way to add external libraries
 function(of_add_library target_name library_name)
@@ -354,20 +347,20 @@ function(of_add_library target_name library_name)
         find_package(OpenCV REQUIRED)
         target_link_libraries(${target_name} PRIVATE ${OpenCV_LIBS})
         target_include_directories(${target_name} PRIVATE ${OpenCV_INCLUDE_DIRS})
-        message(STATUS "  📚 Added OpenCV library")
+        message(STATUS "     Added OpenCV library")
         
     elseif(${library_name} STREQUAL "Boost")
         find_package(Boost REQUIRED COMPONENTS ${ARGN})
         target_link_libraries(${target_name} PRIVATE ${Boost_LIBRARIES})
         target_include_directories(${target_name} PRIVATE ${Boost_INCLUDE_DIRS})
-        message(STATUS "  📚 Added Boost library")
+        message(STATUS "     Added Boost library")
         
     elseif(${library_name} STREQUAL "SQLite")
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(SQLITE REQUIRED sqlite3)
         target_link_libraries(${target_name} PRIVATE ${SQLITE_LIBRARIES})
         target_include_directories(${target_name} PRIVATE ${SQLITE_INCLUDE_DIRS})
-        message(STATUS "  📚 Added SQLite library")
+        message(STATUS "     Added SQLite library")
         
     else()
         # Try pkg-config as fallback
@@ -378,7 +371,7 @@ function(of_add_library target_name library_name)
             if(${library_name}_FOUND)
                 target_link_libraries(${target_name} PRIVATE ${${library_name}_LIBRARIES})
                 target_include_directories(${target_name} PRIVATE ${${library_name}_INCLUDE_DIRS})
-                message(STATUS "  📚 Added ${library_name} library (via pkg-config)")
+                message(STATUS "     Added ${library_name} library (via pkg-config)")
             else()
                 message(WARNING "⚠️  Library not found: ${library_name}")
             endif()
@@ -395,10 +388,10 @@ function(of_add_custom_library target_name lib_name lib_path include_path)
         if(EXISTS ${include_path})
             target_include_directories(${target_name} PRIVATE ${include_path})
         endif()
-        message(STATUS "  📚 Added custom library: ${lib_name}")
+        message(STATUS "     Added custom library: ${lib_name}")
     else()
         message(WARNING "⚠️  Custom library not found: ${lib_path}")
     endif()
 endfunction()
 
-message(STATUS "✅ openFrameworks CMake Module loaded successfully!")
+message(STATUS "   openFrameworks CMake Module loaded successfully!")

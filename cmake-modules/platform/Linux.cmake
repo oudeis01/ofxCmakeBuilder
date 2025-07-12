@@ -2,7 +2,7 @@
 # Linux Platform Configuration for openFrameworks
 # ================================================================================
 
-message(STATUS "🐧 Configuring for Linux platform...")
+message(STATUS "   Configuring for Linux platform...")
 
 # ================================================================================
 # Platform-specific function
@@ -98,10 +98,10 @@ function(of_configure_platform target_name)
     set(FMOD_LIB "${OF_ROOT}/libs/fmod/lib/${OF_PLATFORM}/libfmod.so")
     if(EXISTS ${FMOD_LIB})
         target_link_libraries(${target_name} PRIVATE ${FMOD_LIB})
-        message(STATUS "  🔊 FMOD audio library found and linked")
+        message(STATUS "     FMOD audio library found and linked")
     else()
         message(STATUS "  ⚠️  FMOD library not found (commercial license required)")
     endif()
     
-    message(STATUS "✅ Linux platform configuration complete")
+    message(STATUS "   Linux platform configuration complete")
 endfunction()
