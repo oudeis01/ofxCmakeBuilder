@@ -145,7 +145,7 @@ if [ -d "$TEST_EXAMPLE" ]; then
     cd "$TEST_EXAMPLE"
     
     # Generate CMakeLists.txt
-    "$SCRIPT_DIR/generateCMake.sh" "." > /dev/null 2>&1
+    "$SCRIPTS_DIR/generateCMake.sh" "." > /dev/null 2>&1
     
     # Try to configure
     mkdir -p build

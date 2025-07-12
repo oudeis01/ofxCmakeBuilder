@@ -8,8 +8,8 @@ export LC_ALL=C
 SCRIPT_DIR="$(cd $(dirname $0); pwd)"
 OF_ROOT="$(cd $(dirname $0)/../..; pwd -P)"
 
-echo "🔧 openFrameworks CMakeLists.txt Generator"
-echo "📁 openFrameworks root: $OF_ROOT"
+echo "   openFrameworks CMakeLists.txt Generator"
+echo "   openFrameworks root: $OF_ROOT"
 
 # 함수: CMakeLists.txt 생성
 generate_cmakelists() {
@@ -27,7 +27,7 @@ generate_cmakelists() {
     # 상대 경로 계산
     RELATIVE_OF_ROOT=$(realpath --relative-to="$PROJECT_DIR" "$OF_ROOT")
     
-    echo "  📝 Generating ultra-minimal CMakeLists.txt for $PROJECT_NAME..."
+    echo "     Generating ultra-minimal CMakeLists.txt for $PROJECT_NAME..."
     
     cat > "$PROJECT_DIR/CMakeLists.txt" << EOF
 cmake_minimum_required(VERSION 3.10)
@@ -60,7 +60,7 @@ of_setup_project()
 # target_include_directories(\${PROJECT_NAME} PRIVATE "custom_headers/")
 EOF
 
-    echo "  ✅ Generated ultra-minimal CMakeLists.txt for $PROJECT_NAME (only 8 essential lines!)"
+    echo "     Generated ultra-minimal CMakeLists.txt for $PROJECT_NAME (only 8 essential lines!)"
 }
 
 # 메인 실행 부분
@@ -81,7 +81,7 @@ if [ "$1" = "all" ]; then
             continue
         fi
         
-        echo "📁 Processing category: $(basename $category)"
+        echo "   Processing category: $(basename $category)"
         
         for example in $(find "$category" -maxdepth 1 -type d); do
             if [ "$example" = "$category" ]; then
@@ -95,7 +95,7 @@ if [ "$1" = "all" ]; then
         done
     done
     
-    echo "🎉 Generated CMakeLists.txt for $TOTAL projects!"
+    echo "   Generated CMakeLists.txt for $TOTAL projects!"
 else
     PROJECT_DIR="$1"
     if [ ! -d "$PROJECT_DIR" ]; then
@@ -110,7 +110,7 @@ else
     fi
     
     generate_cmakelists "$PROJECT_DIR"
-    echo "🎉 Done! You can now build with:"
+    echo "   Done! You can now build with:"
     echo "   cd $PROJECT_DIR && mkdir -p build && cd build"
     echo "   cmake .. && make -j$(nproc)"
 fi
