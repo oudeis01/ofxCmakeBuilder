@@ -7,104 +7,96 @@ set -e
 
 # Check if argument provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 <openframeworks_root_path>"
-    echo ""
-    echo "Examples:"
-    echo "  $0 /path/to/of_v20250319_linux64_gcc6_release"
-    echo "  $0 ~/openframeworks"
-    echo "  $0 ."
+    printf "Usage: $0 <openframeworks_root_path>\n"
+    printf "\n"
+    printf "Examples:\n"
+    printf "  $0 /path/to/of_v20250319_linux64_gcc6_release\n"
+    printf "  $0 ~/openframeworks\n"
+    printf "  $0 .\n"
     exit 1
 fi
 
 # Get and validate openFrameworks root path
 OF_ROOT="$(cd "$1" && pwd -P 2>/dev/null)" || {
-    echo "Error: Invalid path: $1"
+    printf "Error: Invalid path: $1\n"
     exit 1
 }
 
-echo "Target openFrameworks root: $OF_ROOT"
+printf "Target openFrameworks root: $OF_ROOT\n"
 
 # Validate openFrameworks installation
 if [ ! -d "$OF_ROOT/libs/openFrameworks" ]; then
-    echo "Error: Invalid openFrameworks installation!"
-    echo "libs/openFrameworks directory not found in: $OF_ROOT"
+    printf "Error: Invalid openFrameworks installation!\n"
+    printf "libs/openFrameworks directory not found in: $OF_ROOT\n"
     exit 1
 fi
 
 if [ ! -d "$OF_ROOT/examples" ]; then
-    echo "Error: Invalid openFrameworks installation!"
-    echo "examples directory not found in: $OF_ROOT"
+    printf "Error: Invalid openFrameworks installation!\n"
+    printf "examples directory not found in: $OF_ROOT\n"
     exit 1
 fi
 
-echo "Valid openFrameworks installation detected"
+printf "Valid openFrameworks installation detected\n"
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "Installing CMake System..."
+printf "Installing CMake System...\n"
 
-# 1. Install main CMake module
-CMAKE_MODULE_DIR="$OF_ROOT/libs/openFrameworks/cmake"
+# Update installation paths
+CMAKE_MODULE_DIR="$OF_ROOT/cmake-modules/platform"
+SCRIPTS_DIR="$OF_ROOT/scripts/cmake-scripts"
+
+# Create necessary directories
 mkdir -p "$CMAKE_MODULE_DIR"
-mkdir -p "$CMAKE_MODULE_DIR/platform"
-
-echo "Installing main CMake module..."
-cp "$SCRIPT_DIR/cmake-modules/openFrameworks.cmake" "$CMAKE_MODULE_DIR/"
-echo "Installed: openFrameworks.cmake"
-
-echo "Installing platform modules..."
-cp "$SCRIPT_DIR/cmake-modules/platform/"*.cmake "$CMAKE_MODULE_DIR/platform/"
-echo "Installed: Platform-specific modules"
-
-# 2. Install scripts
-# Detect platform for script directory naming
-case "$(uname -s)" in
-    Darwin*)    SCRIPTS_DIR="$OF_ROOT/scripts/macos" ;;
-    Linux*)     SCRIPTS_DIR="$OF_ROOT/scripts/linux" ;;
-    CYGWIN*|MINGW*|MSYS*)    SCRIPTS_DIR="$OF_ROOT/scripts/windows" ;;
-    *)          SCRIPTS_DIR="$OF_ROOT/scripts/linux" ;;  # fallback
-esac
-
 mkdir -p "$SCRIPTS_DIR"
 
-echo "Installing utility scripts for $(uname -s)..."
+# 1. Install main CMake module
+printf "Installing main CMake module...\n"
+cp "$SCRIPT_DIR/cmake-modules/openFrameworks.cmake" "$CMAKE_MODULE_DIR/"
+printf "Installed: $CMAKE_MODULE_DIR/openFrameworks.cmake\n"
+
+printf "Installing platform modules...\n"
+cp "$SCRIPT_DIR/cmake-modules/platform/"*.cmake "$CMAKE_MODULE_DIR/"
+printf "Installed: Platform-specific modules\n"
+printf "\t $CMAKE_MODULE_DIR/*\n"
+
+# 2. Install scripts
+printf "Installing utility scripts...\n"
 cp "$SCRIPT_DIR/scripts/generateCMake.sh" "$SCRIPTS_DIR/generateCMake.sh"
 chmod +x "$SCRIPTS_DIR/generateCMake.sh"
-echo "Installed: generateCMake.sh (cross-platform compatible)"
+printf "Installed: $SCRIPTS_DIR/generateCMake.sh\n"
 
-# 3. Install improved build and test scripts
-echo "Installing improved build scripts..."
-cp "$SCRIPT_DIR/scripts/buildAll.sh" "$SCRIPTS_DIR/"
+cp "$SCRIPT_DIR/scripts/buildAll.sh" "$SCRIPTS_DIR/buildAll.sh"
 chmod +x "$SCRIPTS_DIR/buildAll.sh"
-echo "Installed: buildAll.sh (colored output, detailed error reporting)"
+printf "Installed: buildAll.sh\n"
 
-cp "$SCRIPT_DIR/scripts/buildAndTestAll.sh" "$SCRIPTS_DIR/"
+cp "$SCRIPT_DIR/scripts/buildAndTestAll.sh" "$SCRIPTS_DIR/buildAndTestAll.sh"
 chmod +x "$SCRIPTS_DIR/buildAndTestAll.sh"
-echo "Installed: buildAndTestAll.sh (automated build and test runner)"
+printf "Installed: buildAndTestAll.sh\n"
 
-echo "Testing Installation..."
+printf "Testing Installation...\n"
 
 # Test with a simple example
 TEST_EXAMPLE="$OF_ROOT/examples/3d/3DPrimitivesExample"
 if [ -d "$TEST_EXAMPLE" ]; then
-    echo "Testing installation with 3DPrimitivesExample..."
-    
+    printf "Testing installation with 3DPrimitivesExample...\n"
     cd "$TEST_EXAMPLE"
-    
+
     # Generate CMakeLists.txt
     "$SCRIPTS_DIR/generateCMake.sh" "." > /dev/null 2>&1
-    
+
     # Try to configure
     mkdir -p build
     cd build
-    if cmake .. > /dev/null 2>&1; then
-        echo "CMake configuration test passed"
+    if cmake -DCMAKE_MODULE_PATH="$CMAKE_MODULE_DIR" .. > /dev/null 2>&1; then
+        printf "CMake configuration test passed\n"
     else
-        echo "Warning: CMake configuration test failed, but installation completed"
+        printf "Warning: CMake configuration test failed, but installation completed\n"
     fi
 else
-    echo "Warning: Test example not found, skipping test"
+    printf "Warning: Test example not found, skipping test\n"
 fi
 
 echo "Installation Complete"
@@ -122,15 +114,9 @@ echo ""
 echo "Next Steps:"
 echo "1. Generate CMakeLists.txt for existing projects:"
 echo "   cd $OF_ROOT"
-case "$(uname -s)" in
-    Darwin*)    PLATFORM_DIR="macos" ;;
-    Linux*)     PLATFORM_DIR="linux" ;;
-    CYGWIN*|MINGW*|MSYS*)    PLATFORM_DIR="windows" ;;
-    *)          PLATFORM_DIR="linux" ;;
-esac
-echo "   scripts/$PLATFORM_DIR/generateCMake.sh examples/3d/3DPrimitivesExample"
+echo "   scripts/cmake-scripts/generateCMake.sh examples/3d/3DPrimitivesExample"
 echo "   # or for all examples:"
-echo "   scripts/$PLATFORM_DIR/generateCMake.sh all"
+echo "   scripts/cmake-scripts/generateCMake.sh all"
 echo ""
 echo "2. Build a project:"
 echo "   cd examples/3d/3DPrimitivesExample"

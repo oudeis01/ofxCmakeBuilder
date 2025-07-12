@@ -9,19 +9,16 @@ export LC_ALL=C
 SCRIPT_DIR="$(cd $(dirname $0); pwd)"
 
 # auto detect OF_ROOT
-if [ -f "$(dirname $0)/../../libs/openFrameworks/cmake/openFrameworks.cmake" ]; then
-    # if ofxCmakeBuilder is inside OF
+if [ -f "$(dirname $0)/../../cmake-modules/platform/openFrameworks.cmake" ]; then
     OF_ROOT="$(cd $(dirname $0)/../..; pwd -P)"
-elif [ -f "$(dirname $0)/../../../libs/openFrameworks/cmake/openFrameworks.cmake" ]; then
-    # if other location
+elif [ -f "$(dirname $0)/../../../cmake-modules/platform/openFrameworks.cmake" ]; then
     OF_ROOT="$(cd $(dirname $0)/../../..; pwd -P)"
 else
-    # search in env variable
-    if [ -n "$OF_ROOT" ] && [ -f "$OF_ROOT/libs/openFrameworks/cmake/openFrameworks.cmake" ]; then
+    if [ -n "$OF_ROOT" ] && [ -f "$OF_ROOT/cmake-modules/platform/openFrameworks.cmake" ]; then
         OF_ROOT="$(cd "$OF_ROOT"; pwd -P)"
     else
-        echo "❌ Error: Cannot find openFrameworks installation"
-        echo "   Please ensure openFrameworks.cmake exists in libs/openFrameworks/cmake/"
+        echo "\u274c Error: Cannot find openFrameworks installation"
+        echo "   Please ensure openFrameworks.cmake exists in cmake-modules/platform/"
         exit 1
     fi
 fi
@@ -219,8 +216,7 @@ elseif(WIN32)
 endif()
 EOF
 
-    echo "     ✅ Generated cross-platform CMakeLists.txt for $PROJECT_NAME"
-    echo "     📝 Features: Cross-platform paths, platform detection, comprehensive examples"
+    echo "     ✅ Generated CMakeLists.txt for $PROJECT_NAME"
 }
 
 # Validates all built-in examples

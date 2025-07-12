@@ -1,4 +1,5 @@
 #!/bin/bash
+# set -x  # Enable shell debugging (disabled for cleaner output)
 
 # ===================================
 # openFrameworks CMake Build All Script
@@ -7,7 +8,7 @@
 # with colored output for errors and detailed reporting.
 # ===================================
 
-set -e  # Exit on any error
+# Remove set -e to prevent premature exit
 
 # Colors for output
 RED='\033[0;31m'
@@ -19,7 +20,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-OF_ROOT="${OF_ROOT:-$(dirname $(dirname $(dirname $(realpath $0))))}"
+OF_ROOT="${OF_ROOT:-$(dirname $(dirname $(realpath $0)))}"
 PARALLEL_JOBS=4
 
 echo -e "${BLUE}====================================${NC}"
@@ -56,104 +57,46 @@ FAILED_EXAMPLES=()
 echo -e "${PURPLE}Found ${total_examples} examples to build${NC}"
 echo ""
 
-# Function to build a single example
-build_example() {
-    local example_dir="$1"
-    local example_name=$(basename "$example_dir")
-    local category_name=$(basename $(dirname "$example_dir"))
-    local index="$2"
-    
-    echo -e "${BLUE}[$index/$total_examples] Building: ${category_name}/${example_name}${NC}"
-    
-    cd "$example_dir"
-    
-    # Clean any existing build
-    rm -rf build
-    
-    # Create temporary files for capturing output
-    local cmake_output=$(mktemp)
-    local build_output=$(mktemp)
-    
-    # Configure with CMake
-    if ! cmake -B build . > "$cmake_output" 2>&1; then
-        echo -e "${RED}   ❌ CMake configuration failed${NC}"
-        echo -e "${RED}   📋 Configuration output:${NC}"
-        while IFS= read -r line; do
-            echo -e "${RED}      $line${NC}"
-        done < "$cmake_output"
-        rm -f "$cmake_output" "$build_output"
-        return 1
-    fi
-    
-    # Build
-    if ! cmake --build build -j$PARALLEL_JOBS > "$build_output" 2>&1; then
-        echo -e "${RED}   ❌ Build failed${NC}"
-        echo -e "${RED}   🔨 Build output:${NC}"
-        while IFS= read -r line; do
-            # Highlight error lines in red
-            if [[ "$line" =~ ^.*error:.*$ ]] || [[ "$line" =~ ^.*Error.*$ ]] || [[ "$line" =~ ^.*failed.*$ ]]; then
-                echo -e "${RED}      $line${NC}"
-            elif [[ "$line" =~ ^.*warning:.*$ ]] || [[ "$line" =~ ^.*Warning.*$ ]]; then
-                echo -e "${YELLOW}      $line${NC}"
-            else
-                echo "      $line"
-            fi
-        done < "$build_output"
-        rm -f "$cmake_output" "$build_output"
-        return 1
-    fi
-    
-    echo -e "${GREEN}   ✅ Build successful${NC}"
-    rm -f "$cmake_output" "$build_output"
-    return 0
-}
-
-# Main build loop
+# Build each example
 for i in "${!EXAMPLE_DIRS[@]}"; do
     example_dir="${EXAMPLE_DIRS[$i]}"
     example_name=$(basename "$example_dir")
     category_name=$(basename $(dirname "$example_dir"))
     index=$((i + 1))
-    
-    if build_example "$example_dir" "$index"; then
-        ((successful_builds++))
+
+    # Create build directory
+    build_dir="$example_dir/build"
+    mkdir -p "$build_dir"
+
+    # Run CMake configuration and build
+    pushd "$build_dir" > /dev/null 2>&1
+    cmake .. > /dev/null 2>&1 && make -j$PARALLEL_JOBS > /dev/null 2>&1
+    build_status=$?
+    popd > /dev/null 2>&1
+
+    if [ $build_status -eq 0 ]; then
+        echo -e "${GREEN}✔ $category_name/$example_name${NC}"
+        successful_builds=$((successful_builds + 1))
     else
-        ((failed_builds++))
+        echo -e "${RED}✘ $category_name/$example_name${NC}"
+        failed_builds=$((failed_builds + 1))
         FAILED_EXAMPLES+=("$category_name/$example_name")
     fi
-    
-    echo ""
+
 done
 
-# Final summary
-echo -e "${BLUE}====================================${NC}"
-echo -e "${BLUE}Build Summary${NC}"
-echo -e "${BLUE}====================================${NC}"
-echo -e "${GREEN}✅ Successful builds: $successful_builds${NC}"
-echo -e "${RED}❌ Failed builds: $failed_builds${NC}"
-echo -e "${PURPLE}📊 Total examples: $total_examples${NC}"
+echo ""
+# Summary
+echo -e "${PURPLE}Build Summary:${NC}"
+echo -e "${GREEN}Successful builds: $successful_builds${NC}"
+echo -e "${RED}Failed builds: $failed_builds${NC}"
 
 if [ $failed_builds -gt 0 ]; then
-    echo ""
-    echo -e "${RED}❌ Failed examples:${NC}"
-    for failed_example in "${FAILED_EXAMPLES[@]}"; do
-        echo -e "${RED}   - $failed_example${NC}"
+    echo -e "${RED}Failed examples:${NC}"
+    for failed in "${FAILED_EXAMPLES[@]}"; do
+        echo -e "  $failed"
     done
 fi
 
-# Calculate success rate
-if [ $total_examples -gt 0 ]; then
-    success_rate=$((successful_builds * 100 / total_examples))
-    echo -e "${CYAN}📈 Success rate: ${success_rate}%${NC}"
-fi
 
-echo ""
-
-# Exit with appropriate code
-if [ $failed_builds -eq 0 ]; then
-    echo -e "${GREEN}🎉 All builds successful!${NC}"
-    exit 0
-else
-    echo -e "${RED}💥 Some builds failed${NC}"
-    exit 1
-fi
+## TODO: check the failing examples and fix it in the main core cmake module

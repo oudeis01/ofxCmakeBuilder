@@ -25,7 +25,7 @@ message(STATUS "Loading openFrameworks CMake Module...")
 
 # Find openFrameworks root directory
 if(NOT DEFINED OF_ROOT)
-    get_filename_component(OF_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+    get_filename_component(OF_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 endif()
 
 message(STATUS "openFrameworks root: ${OF_ROOT}")

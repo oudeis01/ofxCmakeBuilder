@@ -19,9 +19,9 @@ function(of_configure_platform target_name)
         wsock32 ws2_32 winmm advapi32 version user32 shell32 psapi
         
         # openFrameworks bundled libraries for Windows
-        "${OF_ROOT}/libs/kiss/lib/${OF_PLATFORM}/kiss.lib"
-        "${OF_ROOT}/libs/tess2/lib/${OF_PLATFORM}/tess2.lib"
-        "${OF_ROOT}/libs/fmod/lib/${OF_PLATFORM}/fmod_vc.lib"
+        "${OF_ROOT}/cmake-modules/libs/kiss/lib/${OF_PLATFORM}/kiss.lib"
+        "${OF_ROOT}/cmake-modules/libs/tess2/lib/${OF_PLATFORM}/tess2.lib"
+        "${OF_ROOT}/cmake-modules/libs/fmod/lib/${OF_PLATFORM}/fmod_vc.lib"
     )
     
     message(STATUS "   Windows platform configuration complete")

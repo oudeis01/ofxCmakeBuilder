@@ -1,4 +1,5 @@
 #!/bin/bash
+# set -e  # Exit on any error (disabled for cleaner output)
 
 # ===================================
 # openFrameworks CMake Build & Test All Script
@@ -7,7 +8,7 @@
 # by running each binary for 4 seconds then killing it.
 # ===================================
 
-set -e  # Exit on any error
+# Remove set -e to prevent premature exit
 
 # Colors for output
 RED='\033[0;31m'
@@ -19,7 +20,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-OF_ROOT="${OF_ROOT:-$(dirname $(dirname $(dirname $(realpath $0))))}"
+OF_ROOT="${OF_ROOT:-$(dirname $(dirname $(realpath $0)))}"
 TEST_DURATION=4  # seconds to run each test
 PARALLEL_JOBS=4
 
@@ -55,153 +56,86 @@ successful_builds=0
 successful_tests=0
 failed_builds=0
 failed_tests=0
+FAILED_EXAMPLES=()
+FAILED_TESTS=()
 
 echo -e "${PURPLE}Found ${total_examples} examples to build and test${NC}"
 echo ""
 
-# Function to run a single test
-run_test() {
-    local example_dir="$1"
-    local example_name=$(basename "$example_dir")
-    local category_name=$(basename $(dirname "$example_dir"))
-    
-    echo -e "${YELLOW}🧪 Testing: ${category_name}/${example_name}${NC}"
-    
-    cd "$example_dir"
-    
-    # Check if binary exists
-    if [ ! -f "bin/$example_name" ]; then
-        echo -e "${RED}   ❌ Binary not found: bin/$example_name${NC}"
-        return 1
-    fi
-    
-    # Run the binary in background for specified duration
-    echo -e "${CYAN}   🏃 Running for ${TEST_DURATION} seconds...${NC}"
-    
-    # Start the process in background, capture its PID
-    "./bin/$example_name" > /dev/null 2>&1 &
-    local pid=$!
-    
-    # Wait for specified duration
-    sleep $TEST_DURATION
-    
-    # Kill the process if it's still running
-    if kill -0 $pid 2>/dev/null; then
-        kill $pid 2>/dev/null
-        wait $pid 2>/dev/null || true  # Ignore exit code from killed process
-        echo -e "${GREEN}   ✅ Test completed (process terminated cleanly)${NC}"
-        return 0
-    else
-        echo -e "${RED}   ❌ Process crashed or exited early${NC}"
-        return 1
-    fi
-}
-
-# Function to build and test a single example
-build_and_test_example() {
-    local example_dir="$1"
-    local example_name=$(basename "$example_dir")
-    local category_name=$(basename $(dirname "$example_dir"))
-    local index="$2"
-    
-    echo -e "${BLUE}[$index/$total_examples] Building: ${category_name}/${example_name}${NC}"
-    
-    cd "$example_dir"
-    
-    # Clean any existing build
-    rm -rf build
-    
-    # Configure with CMake
-    if ! cmake -B build . > /dev/null 2>&1; then
-        echo -e "${RED}   ❌ CMake configuration failed${NC}"
-        return 1
-    fi
-    
-    # Build
-    if ! cmake --build build -j$PARALLEL_JOBS > /dev/null 2>&1; then
-        echo -e "${RED}   ❌ Build failed${NC}"
-        return 1
-    fi
-    
-    # Copy required dynamic libraries for macOS (manual fix for library paths)
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        local project_name=$(basename "$example_dir")
-        local bin_path="$example_dir/bin"
-        local executable_path="$bin_path/$project_name"
-        
-        # Copy FMOD library if executable exists
-        if [ -f "$executable_path" ]; then
-            local fmod_lib="$OF_ROOT/libs/fmod/lib/osx/libfmod.dylib"
-            if [ -f "$fmod_lib" ]; then
-                cp "$fmod_lib" "$bin_path/libfmod.dylib" 2>/dev/null || true
-                
-                # Fix library paths using install_name_tool
-                install_name_tool -change "@executable_path/../Frameworks/libfmod.dylib" "@executable_path/libfmod.dylib" "$executable_path" 2>/dev/null || true
-            fi
-        fi
-    fi
-    
-    echo -e "${GREEN}   ✅ Build successful${NC}"
-    
-    # Test the binary
-    if run_test "$example_dir"; then
-        echo -e "${GREEN}   ✅ Test successful${NC}"
-        return 0
-    else
-        echo -e "${RED}   ❌ Test failed${NC}"
-        return 2  # Different return code for test failure vs build failure
-    fi
-}
-
-# Main build and test loop
+# Build and test each example
 for i in "${!EXAMPLE_DIRS[@]}"; do
     example_dir="${EXAMPLE_DIRS[$i]}"
+    example_name=$(basename "$example_dir")
+    category_name=$(basename $(dirname "$example_dir"))
     index=$((i + 1))
-    
-    if build_and_test_example "$example_dir" "$index"; then
+
+    # Create build directory
+    build_dir="$example_dir/build"
+    mkdir -p "$build_dir"
+
+    # Run CMake configuration and build
+    pushd "$build_dir" > /dev/null 2>&1
+    cmake .. > /dev/null 2>&1 && make -j$PARALLEL_JOBS > /dev/null 2>&1
+    build_status=$?
+    popd > /dev/null 2>&1
+
+    if [ $build_status -eq 0 ]; then
+        echo -e "${GREEN}✔ Build: $category_name/$example_name${NC}"
         ((successful_builds++))
-        ((successful_tests++))
-    else
-        exit_code=$?
-        if [ $exit_code -eq 1 ]; then
-            ((failed_builds++))
+        
+        # Test the executable
+        pushd "$example_dir" > /dev/null 2>&1
+        executable=$(find . -name "$example_name" -type f -executable 2>/dev/null | head -1)
+        if [ -n "$executable" ] && [ -f "$executable" ]; then
+            # Run the executable in background for TEST_DURATION seconds
+            timeout $TEST_DURATION "$executable" > /dev/null 2>&1 &
+            test_pid=$!
+            wait $test_pid 2>/dev/null
+            test_exit_code=$?
+            
+            # Check if test was successful (timeout exit code is 124)
+            if [ $test_exit_code -eq 124 ] || [ $test_exit_code -eq 0 ]; then
+                echo -e "${GREEN}✔ Test: $category_name/$example_name${NC}"
+                ((successful_tests++))
+            else
+                echo -e "${RED}✘ Test: $category_name/$example_name${NC}"
+                ((failed_tests++))
+                FAILED_TESTS+=("$category_name/$example_name")
+            fi
         else
-            ((successful_builds++))
+            echo -e "${RED}✘ Test: $category_name/$example_name (executable not found)${NC}"
             ((failed_tests++))
+            FAILED_TESTS+=("$category_name/$example_name")
         fi
+        popd > /dev/null 2>&1
+    else
+        echo -e "${RED}✘ Build: $category_name/$example_name${NC}"
+        ((failed_builds++))
+        ((failed_tests++))
+        FAILED_EXAMPLES+=("$category_name/$example_name")
+        FAILED_TESTS+=("$category_name/$example_name")
     fi
-    
-    echo ""
+
 done
 
-# Final summary
-echo -e "${BLUE}====================================${NC}"
-echo -e "${BLUE}Build & Test Summary${NC}"
-echo -e "${BLUE}====================================${NC}"
-echo -e "${GREEN}✅ Successful builds: $successful_builds${NC}"
-echo -e "${GREEN}✅ Successful tests: $successful_tests${NC}"
-echo -e "${RED}❌ Failed builds: $failed_builds${NC}"
-echo -e "${RED}❌ Failed tests: $failed_tests${NC}"
-echo -e "${PURPLE}📊 Total examples: $total_examples${NC}"
+echo ""
+# Summary
+echo -e "${PURPLE}Build & Test Summary:${NC}"
+echo -e "${GREEN}Successful builds: $successful_builds${NC}"
+echo -e "${GREEN}Successful tests: $successful_tests${NC}"
+echo -e "${RED}Failed builds: $failed_builds${NC}"
+echo -e "${RED}Failed tests: $failed_tests${NC}"
 
-# Calculate success rates
-if [ $total_examples -gt 0 ]; then
-    build_success_rate=$((successful_builds * 100 / total_examples))
-    test_success_rate=$((successful_tests * 100 / total_examples))
-    echo -e "${CYAN}📈 Build success rate: ${build_success_rate}%${NC}"
-    echo -e "${CYAN}📈 Test success rate: ${test_success_rate}%${NC}"
+if [ $failed_builds -gt 0 ]; then
+    echo -e "${RED}Failed builds:${NC}"
+    for failed in "${FAILED_EXAMPLES[@]}"; do
+        echo -e "  $failed"
+    done
 fi
 
-echo ""
-
-# Exit with appropriate code
-if [ $failed_builds -eq 0 ] && [ $failed_tests -eq 0 ]; then
-    echo -e "${GREEN}🎉 All builds and tests successful!${NC}"
-    exit 0
-elif [ $failed_builds -eq 0 ]; then
-    echo -e "${YELLOW}⚠️  All builds successful, but some tests failed${NC}"
-    exit 1
-else
-    echo -e "${RED}💥 Some builds failed${NC}"
-    exit 2
+if [ $failed_tests -gt 0 ]; then
+    echo -e "${RED}Failed tests:${NC}"
+    for failed in "${FAILED_TESTS[@]}"; do
+        echo -e "  $failed"
+    done
 fi

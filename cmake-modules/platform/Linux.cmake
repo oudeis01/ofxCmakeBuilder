@@ -61,8 +61,8 @@ function(of_configure_platform target_name)
     # Third-party static libraries (bundled with openFrameworks)
     target_link_libraries(${target_name} PRIVATE
         # openFrameworks bundled libraries
-        "${OF_ROOT}/libs/kiss/lib/${OF_PLATFORM}/libkiss.a"
-        "${OF_ROOT}/libs/tess2/lib/${OF_PLATFORM}/libtess2.a"
+        "${OF_ROOT}/cmake-modules/libs/kiss/lib/${OF_PLATFORM}/libkiss.a"
+        "${OF_ROOT}/cmake-modules/libs/tess2/lib/${OF_PLATFORM}/libtess2.a"
         
         # System libraries from pkg-config
         ${GSTREAMER_LIBRARIES}
