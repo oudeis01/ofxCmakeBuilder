@@ -4,7 +4,7 @@
 
 ## Features
 
-- **Cross-platform**: Works on macOS(not tested), Linux(tested). Windows support coming soon
+- **Cross-platform**: Works on `Linuxx64`, `macOS`. Windows support will come soon
 - **Addon support**: Automatically detects and configures addons with their dependencies, by parsing the conventional addons.make
 - **Platform-specific exclusions**: Properly handles platform-specific source/include exclusions from `addon_config.mk`
 - **Dynamic dependency detection**: Automatically finds and links system libraries and frameworks
@@ -52,9 +52,24 @@ Example:
 - **`platform/Windows.cmake`**: Windows-specific configuration(WIP)
 
 ### Utility Scripts
-- **`generateCMake.sh`**: Cross-platform CMakeLists.txt generator
+- **`generateCMake.sh`**: CMakeLists.txt generator for OF projects
 - **`buildAll.sh`**: Build all examples
 - **`buildAndTestAll.sh`**: Build and run all examples
+
+### File Structure
+```
+OF_ROOT/
+├── cmake-scripts/
+│   ├── generateCMake.sh
+│   ├── buildAll.sh
+│   └── buildAndTestAll.sh
+├── cmake-modules/
+│   ├── platform/
+│   │   ├── Darwin.cmake
+│   │   ├── Linux.cmake
+│   │   └── Windows.cmake
+│   └── openFrameworks.cmake
+```
 
 ## Usage
 
@@ -100,7 +115,7 @@ scripts/macos/buildAndTestAll.sh
 
 ## Supported Addons
 
-The system has been tested and works with most of the built-in addons(OF v.0.12.1) - breaks with ofxKinect
+The system has been tested and works with most of the built-in addons(OF v.0.12.1) - but currently breaks with ofxKinect
 
 
 ## Technical Details
@@ -117,9 +132,9 @@ The system automatically parses `addon_config.mk` files and handles:
 
 ### Build Optimizations
 
-- Intelligent dependency caching
+- Dependency caching for faster rebuilds
 - Minimal rebuild on source changes
-- Proper header dependency tracking
+- Header dependency tracking
 
 ## Troubleshooting
 
@@ -144,6 +159,7 @@ If you update the ofxCmakeBuilder source, reinstall with:
 ```bash
 ./install-cmake-system.sh /path/to/openframeworks
 ```
+
 ## License
 
 MIT License
