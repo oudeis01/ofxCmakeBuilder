@@ -92,6 +92,12 @@ include("${CMAKE_CURRENT_LIST_DIR}/platform/${CMAKE_SYSTEM_NAME}.cmake")
 function(of_setup_project)
     message(STATUS "Setting up openFrameworks project: ${PROJECT_NAME}")
     
+    # Set parallel build jobs for faster compilation
+    if(NOT DEFINED CMAKE_BUILD_PARALLEL_LEVEL)
+        set(CMAKE_BUILD_PARALLEL_LEVEL 4)
+        message(STATUS "   Setting parallel build jobs: 4")
+    endif()
+    
     # Collect project sources
     file(GLOB_RECURSE PROJECT_SOURCES "src/*.cpp" "src/*.c" "src/*.cc")
     if(NOT PROJECT_SOURCES)
@@ -132,23 +138,80 @@ function(of_configure_target target_name)
         "${OF_ROOT}/libs/openFrameworks/types"
         "${OF_ROOT}/libs/openFrameworks/utils"
         "${OF_ROOT}/libs/openFrameworks/video"
-        
-        # Third-party library headers
-        "${OF_ROOT}/libs/glm/include"
-        "${OF_ROOT}/libs/kiss/include"
-        "${OF_ROOT}/libs/tess2/include"
-        "${OF_ROOT}/libs/utf8/include"
-        "${OF_ROOT}/libs/pugixml/src"
-        "${OF_ROOT}/libs/FreeImage/include"
-        "${OF_ROOT}/libs/freetype/include"
-        "${OF_ROOT}/libs/fmod/include"
     )
+    
+    # Add third-party library headers dynamically (only if they exist)
+    message(STATUS "     Adding include directories:")
+    
+    # Add library includes with their subdirectories (matching traditional Makefile)
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/FreeImage/include")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/boost/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/boost/include/boost")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/cairo/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/cairo/include/cairo")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/curl/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/curl/include/curl")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/fmod/include")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/freetype/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/freetype/include/freetype2")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/freetype/include/freetype2/freetype")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/freetype/include/freetype2/freetype/config")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/freetype/include/freetype2/freetype/internal")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/freetype/include/freetype2/freetype/internal/services")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glew/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glew/include/GL")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glfw/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glfw/include/GLFW")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glm/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glm/include/glm")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glm/include/glm/ext")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glm/include/glm/simd")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glm/include/glm/detail")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glm/include/glm/gtc")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/glm/include/glm/gtx")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/json/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/pugixml/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/rtAudio/include")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/tess2/include")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/uriparser/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/uriparser/include/uriparser")
+    
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/utf8/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/utf8/include/utf8")
+    
+    # Legacy compatibility includes
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/kiss/include")
+    of_add_include_if_exists(${target_name} "${OF_ROOT}/libs/poco/include")
     
     # Link precompiled openFrameworks library (FIRST!)
     target_link_libraries(${target_name} PRIVATE ${OF_CORE_LIB})
     
     # Apply platform-specific configuration
     of_configure_platform(${target_name})
+endfunction()
+
+# Helper function to safely add include directories (only if they exist)
+function(of_add_include_if_exists target_name include_path)
+    if(EXISTS ${include_path})
+        target_include_directories(${target_name} PRIVATE ${include_path})
+        # Extract meaningful path info relative to OF_ROOT
+        string(REPLACE "${OF_ROOT}/" "" relative_path "${include_path}")
+        message(STATUS "       ✅ Include: ${relative_path}")
+    else()
+        string(REPLACE "${OF_ROOT}/" "" relative_path "${include_path}")
+        message(STATUS "       ⚠️  Skipped missing: ${relative_path}")
+    endif()
 endfunction()
 
 # Process addons.make file automatically
@@ -191,32 +254,99 @@ function(of_add_addon target_name addon_name)
         
         # Add addon library files (if any)
         if(EXISTS "${addon_path}/libs")
-            file(GLOB_RECURSE ADDON_LIB_SOURCES "${addon_path}/libs/*.cpp" "${addon_path}/libs/*.c")
+            file(GLOB_RECURSE ADDON_LIB_CPP_SOURCES "${addon_path}/libs/*.cpp")
+            file(GLOB_RECURSE ADDON_LIB_C_SOURCES "${addon_path}/libs/*.c")
             
             # Filter out platform-specific files for current platform
             if(UNIX AND NOT APPLE)  # Linux
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/win32/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/osx/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/macos/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/ios/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/tvos/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/android/.*")
-            elseif(APPLE)  # macOS
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/win32/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/posix/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/linux/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/android/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/win32/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/windows/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/osx/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/macos/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/ios/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/tvos/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/android/.*")
+                
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/win32/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/windows/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/osx/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/macos/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/ios/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/tvos/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/android/.*")
+            elseif(APPLE)  # macOS (Unix-like, use posix)
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/win32/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/windows/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/linux/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/android/.*")
+                
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/win32/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/windows/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/linux/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/android/.*")
+                # Note: Keep posix files for macOS as it's Unix-like
             elseif(WIN32)  # Windows
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/posix/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/osx/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/macos/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/ios/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/tvos/.*")
-                list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*/android/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/posix/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/osx/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/macos/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/ios/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/tvos/.*")
+                list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*/android/.*")
+                
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/posix/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/osx/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/macos/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/ios/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/tvos/.*")
+                list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*/android/.*")
             endif()
             
+            # Combine and add sources
+            set(ADDON_LIB_SOURCES ${ADDON_LIB_CPP_SOURCES} ${ADDON_LIB_C_SOURCES})
+            
             if(ADDON_LIB_SOURCES)
-                target_sources(${target_name} PRIVATE ${ADDON_LIB_SOURCES})
+                # Add C++ sources normally
+                if(ADDON_LIB_CPP_SOURCES)
+                    target_sources(${target_name} PRIVATE ${ADDON_LIB_CPP_SOURCES})
+                endif()
+                
+                # Add C sources with C-specific flags
+                if(ADDON_LIB_C_SOURCES)
+                    target_sources(${target_name} PRIVATE ${ADDON_LIB_C_SOURCES})
+                    # Set C standard for C files instead of C++
+                    set_source_files_properties(${ADDON_LIB_C_SOURCES} PROPERTIES
+                        LANGUAGE C
+                        COMPILE_FLAGS "-std=c99"
+                    )
+                endif()
+                
+                list(LENGTH ADDON_LIB_SOURCES lib_source_count)
+                message(STATUS "          📁 Added ${lib_source_count} library source files")
+                
+                # Debug: show first few files
+                list(LENGTH ADDON_LIB_SOURCES total_count)
+                if(total_count GREATER 0)
+                    math(EXPR show_count "${total_count}")
+                    if(show_count GREATER 5)
+                        set(show_count 5)
+                    endif()
+                    foreach(i RANGE 0 ${show_count})
+                        if(i LESS total_count)
+                            list(GET ADDON_LIB_SOURCES ${i} source_file)
+                            get_filename_component(file_name ${source_file} NAME)
+                            get_filename_component(file_ext ${source_file} EXT)
+                            if("${file_ext}" STREQUAL ".c")
+                                message(STATUS "             - ${file_name} (C)")
+                            else()
+                                message(STATUS "             - ${file_name} (C++)")
+                            endif()
+                        endif()
+                    endforeach()
+                    if(total_count GREATER 5)
+                        math(EXPR remaining "${total_count} - 5")
+                        message(STATUS "             ... and ${remaining} more")
+                    endif()
+                endif()
             endif()
             
             # Add all libs subdirectories as include paths (recursively)
@@ -242,27 +372,85 @@ function(of_add_addon target_name addon_name)
                 get_filename_component(LIB_HEADER_DIR ${LIB_HEADER} DIRECTORY)
                 target_include_directories(${target_name} PRIVATE ${LIB_HEADER_DIR})
             endforeach()
+            
+            # Link addon libraries (platform-specific)
+            if(EXISTS "${addon_path}/libs")
+                set(addon_lib_path "")
+                if(APPLE)
+                    set(addon_lib_path "${addon_path}/libs/*/lib/osx")
+                elseif(UNIX)
+                    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+                        set(addon_lib_path "${addon_path}/libs/*/lib/linux64")
+                    else()
+                        set(addon_lib_path "${addon_path}/libs/*/lib/linux")
+                    endif()
+                elseif(WIN32)
+                    set(addon_lib_path "${addon_path}/libs/*/lib/vs")
+                endif()
+                
+                if(addon_lib_path)
+                    file(GLOB_RECURSE ADDON_STATIC_LIBS "${addon_lib_path}/*.a")
+                    file(GLOB_RECURSE ADDON_DYNAMIC_LIBS "${addon_lib_path}/*.dylib" "${addon_lib_path}/*.so" "${addon_lib_path}/*.dll")
+                    
+                    if(ADDON_STATIC_LIBS OR ADDON_DYNAMIC_LIBS)
+                        message(STATUS "          🔗 Linking addon libraries:")
+                        
+                        foreach(LIB ${ADDON_STATIC_LIBS})
+                            target_link_libraries(${target_name} PRIVATE ${LIB})
+                            get_filename_component(lib_name ${LIB} NAME)
+                            message(STATUS "             ✅ Static: ${lib_name}")
+                        endforeach()
+                        
+                        foreach(LIB ${ADDON_DYNAMIC_LIBS})
+                            target_link_libraries(${target_name} PRIVATE ${LIB})
+                            get_filename_component(lib_name ${LIB} NAME)
+                            message(STATUS "             ✅ Dynamic: ${lib_name}")
+                        endforeach()
+                    endif()
+                endif()
+            endif()
         endif()
         
-        # Process addon_config.mk if exists (enhanced for dependencies)
+        # Process addon_config.mk if exists (enhanced for platform-specific dependencies)
         if(EXISTS "${addon_path}/addon_config.mk")
             message(STATUS "       Processing addon_config.mk for ${addon_name}")
             
             # Parse addon_config.mk for platform-specific exclusions
             file(STRINGS "${addon_path}/addon_config.mk" CONFIG_LINES)
             set(exclude_patterns "")
+            set(current_section "common")
+            
+            # Determine current platform section name
+            set(platform_section "common")
+            if(UNIX AND NOT APPLE)
+                set(platform_section "linux")
+            elseif(APPLE)
+                set(platform_section "osx")
+            elseif(WIN32)
+                set(platform_section "vs")
+            endif()
             
             foreach(LINE ${CONFIG_LINES})
                 string(STRIP "${LINE}" TRIMMED_LINE)
-                # Look for ADDON_SOURCES_EXCLUDE or ADDON_INCLUDES_EXCLUDE for current platform
-                if("${TRIMMED_LINE}" MATCHES "^[ \t]*ADDON_SOURCES_EXCLUDE[ \t]*=[ \t]*(.+)$")
-                    set(exclude_pattern "${CMAKE_MATCH_1}")
-                    string(STRIP "${exclude_pattern}" exclude_pattern)
-                    list(APPEND exclude_patterns "${exclude_pattern}")
+                
+                # Detect section headers (e.g., "common:", "vs:", "osx:", "linux:")
+                if("${TRIMMED_LINE}" MATCHES "^([a-zA-Z0-9_]+):[ \t]*$")
+                    set(current_section "${CMAKE_MATCH_1}")
+                # Look for ADDON_SOURCES_EXCLUDE in current section
+                elseif("${TRIMMED_LINE}" MATCHES "^[ \t]*ADDON_SOURCES_EXCLUDE[ \t]*=[ \t]*(.+)$")
+                    if("${current_section}" STREQUAL "common" OR "${current_section}" STREQUAL "${platform_section}")
+                        set(exclude_pattern "${CMAKE_MATCH_1}")
+                        string(STRIP "${exclude_pattern}" exclude_pattern)
+                        list(APPEND exclude_patterns "${exclude_pattern}")
+                        message(STATUS "          📋 Found exclusion (${current_section}): ${exclude_pattern}")
+                    endif()
                 elseif("${TRIMMED_LINE}" MATCHES "^[ \t]*ADDON_INCLUDES_EXCLUDE[ \t]*=[ \t]*(.+)$")
-                    set(exclude_pattern "${CMAKE_MATCH_1}")
-                    string(STRIP "${exclude_pattern}" exclude_pattern)
-                    list(APPEND exclude_patterns "${exclude_pattern}")
+                    if("${current_section}" STREQUAL "common" OR "${current_section}" STREQUAL "${platform_section}")
+                        set(exclude_pattern "${CMAKE_MATCH_1}")
+                        string(STRIP "${exclude_pattern}" exclude_pattern)
+                        list(APPEND exclude_patterns "${exclude_pattern}")
+                        message(STATUS "          📋 Found include exclusion (${current_section}): ${exclude_pattern}")
+                    endif()
                 endif()
             endforeach()
             
@@ -273,20 +461,59 @@ function(of_add_addon target_name addon_name)
                     set(full_exclude_pattern "${addon_path}/${exclude_pattern}")
                     
                     # Remove matching source files
-                    if(ADDON_LIB_SOURCES)
-                        list(LENGTH ADDON_LIB_SOURCES orig_count)
-                        list(FILTER ADDON_LIB_SOURCES EXCLUDE REGEX ".*${exclude_pattern}.*")
-                        list(LENGTH ADDON_LIB_SOURCES new_count)
+                    if(ADDON_LIB_CPP_SOURCES)
+                        list(LENGTH ADDON_LIB_CPP_SOURCES orig_count)
+                        list(FILTER ADDON_LIB_CPP_SOURCES EXCLUDE REGEX ".*${exclude_pattern}.*")
+                        list(LENGTH ADDON_LIB_CPP_SOURCES new_count)
                         math(EXPR excluded_count "${orig_count} - ${new_count}")
                         if(excluded_count GREATER 0)
-                            message(STATUS "    🚫 Excluded ${excluded_count} files matching: ${exclude_pattern}")
+                            message(STATUS "          🚫 Excluded ${excluded_count} C++ files matching: ${exclude_pattern}")
+                        endif()
+                    endif()
+                    
+                    if(ADDON_LIB_C_SOURCES)
+                        list(LENGTH ADDON_LIB_C_SOURCES orig_count)
+                        list(FILTER ADDON_LIB_C_SOURCES EXCLUDE REGEX ".*${exclude_pattern}.*")
+                        list(LENGTH ADDON_LIB_C_SOURCES new_count)
+                        math(EXPR excluded_count "${orig_count} - ${new_count}")
+                        if(excluded_count GREATER 0)
+                            message(STATUS "          🚫 Excluded ${excluded_count} C files matching: ${exclude_pattern}")
                         endif()
                     endif()
                 endforeach()
                 
-                # Update target sources with filtered list
-                if(ADDON_LIB_SOURCES)
-                    target_sources(${target_name} PRIVATE ${ADDON_LIB_SOURCES})
+                # Update combined sources list
+                set(ADDON_LIB_SOURCES ${ADDON_LIB_CPP_SOURCES} ${ADDON_LIB_C_SOURCES})
+                
+                # Re-add sources with updated filtered lists
+                if(ADDON_LIB_CPP_SOURCES)
+                    target_sources(${target_name} PRIVATE ${ADDON_LIB_CPP_SOURCES})
+                endif()
+                
+                if(ADDON_LIB_C_SOURCES)
+                    target_sources(${target_name} PRIVATE ${ADDON_LIB_C_SOURCES})
+                    set_source_files_properties(${ADDON_LIB_C_SOURCES} PROPERTIES
+                        LANGUAGE C
+                        COMPILE_FLAGS "-std=c99"
+                    )
+                endif()
+            endif()
+        endif()
+        
+        # Handle platform-specific header conflicts (e.g., Windows unistd.h on macOS/Linux)
+        if(NOT WIN32 AND "${addon_name}" STREQUAL "ofxKinect")
+            set(windows_platform_dir "${addon_path}/libs/libfreenect/platform/windows")
+            if(EXISTS "${windows_platform_dir}")
+                set(backup_dir "${windows_platform_dir}_backup_${CMAKE_BUILD_TYPE}")
+                if(NOT EXISTS "${backup_dir}")
+                    message(STATUS "          🔧 Temporarily moving Windows platform headers to avoid conflicts")
+                    file(RENAME "${windows_platform_dir}" "${backup_dir}")
+                    
+                    # Restore original directory on build completion
+                    add_custom_command(TARGET ${target_name} POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E rename "${backup_dir}" "${windows_platform_dir}"
+                        COMMENT "   Restoring Windows platform headers"
+                    )
                 endif()
             endif()
         endif()
@@ -318,6 +545,25 @@ function(of_setup_build_output target_name)
         COMMAND ${CMAKE_COMMAND} -E remove "$<TARGET_FILE:${target_name}>"
         COMMENT "   Cleaning build folder (removing executable)"
     )
+    
+    # Platform-specific post-build setup - copy dynamic libraries
+    if(APPLE)
+        # Copy FMOD library for macOS
+        set(FMOD_DYLIB "${OF_ROOT}/libs/fmod/lib/osx/libfmod.dylib")
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${FMOD_DYLIB}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/bin/libfmod.dylib"
+            COMMENT "   📦 Copying libfmod.dylib to bin"
+        )
+        
+        # Fix the executable's library search paths using install_name_tool
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND install_name_tool -change "@executable_path/../Frameworks/libfmod.dylib" "@executable_path/libfmod.dylib" "${CMAKE_CURRENT_SOURCE_DIR}/bin/${target_name}" 2>/dev/null || true
+            COMMENT "   🔧 Fixing library paths in executable"
+            VERBATIM
+        )
+    endif()
     
     # Print completion message with run instructions
     add_custom_command(TARGET ${target_name} POST_BUILD

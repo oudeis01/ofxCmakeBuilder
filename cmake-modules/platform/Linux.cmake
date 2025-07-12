@@ -94,7 +94,7 @@ function(of_configure_platform target_name)
         pugixml uriparser z png crypto ssl glut dl pthread
     )
     
-    # FMOD (commercial audio library) - dynamic linking
+    # FMOD (audio library) - dynamic linking
     set(FMOD_LIB "${OF_ROOT}/libs/fmod/lib/${OF_PLATFORM}/libfmod.so")
     if(EXISTS ${FMOD_LIB})
         target_link_libraries(${target_name} PRIVATE ${FMOD_LIB})

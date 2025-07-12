@@ -58,94 +58,30 @@ cp "$SCRIPT_DIR/cmake-modules/platform/"*.cmake "$CMAKE_MODULE_DIR/platform/"
 echo "Installed: Platform-specific modules"
 
 # 2. Install scripts
-SCRIPTS_DIR="$OF_ROOT/scripts/linux"
+# Detect platform for script directory naming
+case "$(uname -s)" in
+    Darwin*)    SCRIPTS_DIR="$OF_ROOT/scripts/macos" ;;
+    Linux*)     SCRIPTS_DIR="$OF_ROOT/scripts/linux" ;;
+    CYGWIN*|MINGW*|MSYS*)    SCRIPTS_DIR="$OF_ROOT/scripts/windows" ;;
+    *)          SCRIPTS_DIR="$OF_ROOT/scripts/linux" ;;  # fallback
+esac
+
 mkdir -p "$SCRIPTS_DIR"
 
-echo "Installing utility scripts..."
-cp "$SCRIPT_DIR/scripts/generateCMake.sh" "$SCRIPTS_DIR/"
+echo "Installing utility scripts for $(uname -s)..."
+cp "$SCRIPT_DIR/scripts/generateCMake.sh" "$SCRIPTS_DIR/generateCMake.sh"
 chmod +x "$SCRIPTS_DIR/generateCMake.sh"
-echo "Installed: generateCMake.sh"
+echo "Installed: generateCMake.sh (cross-platform compatible)"
 
-# 3. Create buildAllExamples script
-echo "Creating buildAllExamples_cmake.sh..."
-cat > "$SCRIPTS_DIR/buildAllExamples_cmake.sh" << 'EOF'
-#!/bin/bash
+# 3. Install improved build and test scripts
+echo "Installing improved build scripts..."
+cp "$SCRIPT_DIR/scripts/buildAll.sh" "$SCRIPTS_DIR/"
+chmod +x "$SCRIPTS_DIR/buildAll.sh"
+echo "Installed: buildAll.sh (colored output, detailed error reporting)"
 
-# Build all openFrameworks examples using CMake
-
-export LC_ALL=C
-
-# Get CPU count for parallel builds
-get_cpu_count() {
-    if command -v nproc >/dev/null 2>&1; then
-        nproc
-    elif [ "$(uname)" = "Darwin" ]; then
-        sysctl -n hw.ncpu
-    else
-        echo "4"  # fallback
-    fi
-}
-
-SCRIPT_DIR="$(cd $(dirname $0); pwd)"
-OF_ROOT="$(cd $(dirname $0)/../..; pwd -P)"
-CPU_COUNT=$(get_cpu_count)
-
-echo "Building all openFrameworks examples with CMake..."
-echo "openFrameworks root: $OF_ROOT"
-
-TOTAL=0
-SUCCESS=0
-FAILED=0
-
-for category in $(find "$OF_ROOT/examples" -maxdepth 1 -type d); do
-    if [ "$(basename $category)" = "examples" ] || [ "$(basename $category)" = "android" ] || [ "$(basename $category)" = "ios" ] || [ "$(basename $category)" = "tvOS" ]; then
-        continue
-    fi
-    
-    echo "Processing category: $(basename $category)"
-    
-    for example in $(find "$category" -maxdepth 1 -type d); do
-        if [ "$example" = "$category" ]; then
-            continue
-        fi
-        
-        if [ -d "$example/src" ]; then
-            EXAMPLE_NAME="$(basename $example)"
-            echo "  Building: $EXAMPLE_NAME"
-            
-            cd "$example"
-            
-            # Generate CMakeLists.txt if not exists
-            if [ ! -f "CMakeLists.txt" ]; then
-                "$SCRIPT_DIR/generateCMake.sh" "." > /dev/null
-            fi
-            
-            # Build
-            mkdir -p build
-            cd build
-            if cmake .. > /dev/null 2>&1 && make -j$CPU_COUNT > /dev/null 2>&1; then
-                echo "    Success: $EXAMPLE_NAME"
-                SUCCESS=$((SUCCESS + 1))
-            else
-                echo "    Failed: $EXAMPLE_NAME"
-                FAILED=$((FAILED + 1))
-            fi
-            
-            TOTAL=$((TOTAL + 1))
-        fi
-    done
-done
-
-echo ""
-echo "Build Summary:"
-echo "   Total: $TOTAL"
-echo "   Success: $SUCCESS"
-echo "   Failed: $FAILED"
-echo "   Success Rate: $(( SUCCESS * 100 / TOTAL ))%"
-EOF
-
-chmod +x "$SCRIPTS_DIR/buildAllExamples_cmake.sh"
-echo "Created: buildAllExamples_cmake.sh"
+cp "$SCRIPT_DIR/scripts/buildAndTestAll.sh" "$SCRIPTS_DIR/"
+chmod +x "$SCRIPTS_DIR/buildAndTestAll.sh"
+echo "Installed: buildAndTestAll.sh (automated build and test runner)"
 
 echo "Testing Installation..."
 
@@ -176,12 +112,25 @@ echo "Installation Complete"
 echo ""
 echo "openFrameworks CMake System installed successfully"
 echo ""
+echo "Installed Components:"
+echo "  - openFrameworks.cmake (main CMake module with cross-platform support)"
+echo "  - Platform-specific modules (Darwin.cmake, Linux.cmake, Windows.cmake)"
+echo "  - generateCMake.sh (cross-platform CMakeLists.txt generator)"
+echo "  - buildAll.sh (build all examples with colored error output)"
+echo "  - buildAndTestAll.sh (build and test all examples automatically)"
+echo ""
 echo "Next Steps:"
 echo "1. Generate CMakeLists.txt for existing projects:"
 echo "   cd $OF_ROOT"
-echo "   scripts/linux/generateCMake.sh examples/3d/3DPrimitivesExample"
+case "$(uname -s)" in
+    Darwin*)    PLATFORM_DIR="macos" ;;
+    Linux*)     PLATFORM_DIR="linux" ;;
+    CYGWIN*|MINGW*|MSYS*)    PLATFORM_DIR="windows" ;;
+    *)          PLATFORM_DIR="linux" ;;
+esac
+echo "   scripts/$PLATFORM_DIR/generateCMake.sh examples/3d/3DPrimitivesExample"
 echo "   # or for all examples:"
-echo "   scripts/linux/generateCMake.sh all"
+echo "   scripts/$PLATFORM_DIR/generateCMake.sh all"
 echo ""
 echo "2. Build a project:"
 echo "   cd examples/3d/3DPrimitivesExample"
@@ -189,6 +138,9 @@ echo "   mkdir build && cd build"
 echo "   cmake .. && make -j4"
 echo "   make run"
 echo ""
-echo "3. Test all examples:"
-echo "   scripts/linux/buildAllExamples_cmake.sh"
+echo "3. Build all examples (with colored error output):"
+echo "   scripts/$PLATFORM_DIR/buildAll.sh"
+echo ""
+echo "4. Build and test all examples (automated):"
+echo "   scripts/$PLATFORM_DIR/buildAndTestAll.sh"
 echo ""

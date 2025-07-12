@@ -1,13 +1,16 @@
-# openFrameworks CMake System
+# ofxCmakeBuilder - Cross-Platform CMake Build System for openFrameworks
 
-A modular CMake build system for openFrameworks
+**ofxCmakeBuilder** provides a cross-platform CMake build system for openFrameworks projects. It includes improved support for addons, automatic dependency detection, and comprehensive build automation script for built-in examples.
 
 ## Features
 
+- **Cross-platform**: Works on macOS(not tested), Linux(tested). Windows support coming soon
+- **Addon support**: Automatically detects and configures addons with their dependencies, by parsing the conventional addons.make
+- **Platform-specific exclusions**: Properly handles platform-specific source/include exclusions from `addon_config.mk`
+- **Dynamic dependency detection**: Automatically finds and links system libraries and frameworks
+- **Automated testing**: Build and test all examples
 - **Reuse of Precompiled Core Library**: Precompiled library reuse eliminates redundant compilation
-- **Automatic Addon Support**: Compatible with existing addons.make files
 - **Respect Original Project Structure**: Executables automatically moved to bin/ folder
-
 
 ## Example CMakeLists.txt (8 lines)
 ```cmake
@@ -31,6 +34,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 ```
 
 Example:
+
 ```bash
 # If openFrameworks is in your home directory
 ./install-cmake-system.sh ~/of_v20250319_linux64_gcc6_release
@@ -39,20 +43,31 @@ Example:
 ./install-cmake-system.sh /home/youruser/of_v20250319_linux64_gcc6_release
 ```
 
-## Quick Start
+## Installed Components
 
-### 1. Generate CMakeLists.txt for existing projects
+### Core CMake Modules
+- **`openFrameworks.cmake`**: Main CMake module with cross-platform(WIP) support and addon handling
+- **`platform/Darwin.cmake`**: macOS-specific configuration (frameworks, libraries)(WIP)
+- **`platform/Linux.cmake`**: Linux-specific configuration
+- **`platform/Windows.cmake`**: Windows-specific configuration(WIP)
+
+### Utility Scripts
+- **`generateCMake.sh`**: Cross-platform CMakeLists.txt generator
+- **`buildAll.sh`**: Build all examples
+- **`buildAndTestAll.sh`**: Build and run all examples
+
+## Usage
+
+### Generate CMakeLists.txt for a Project
+
+For a single project:
 
 ```bash
-# Single project
 cd /path/to/openframeworks
 scripts/linux/generateCMake.sh examples/3d/3DPrimitivesExample
-
-# All examples at once
-scripts/linux/generateCMake.sh all
+scripts/osx/generateCMake.sh examples/3d/3DPrimitivesExample
 ```
-
-### 2. Build and run a project
+### Build a Project
 
 ```bash
 cd examples/3d/3DPrimitivesExample
@@ -61,133 +76,74 @@ cmake .. && make -j4
 make run
 ```
 
-### 3. Test the entire system
+For all examples:
 
 ```bash
-# Build all examples to verify everything works
-scripts/linux/buildAllExamples_cmake.sh
+scripts/linux/generateCMake.sh all
+scripts/osx/generateCMake.sh all
 ```
 
-## Usage Guide
-
-### Creating New Projects
-
-1. Create new project, either use the PG or manual
-
-2. Run the `generateCMake.sh` with your project path:
+### Build All Examples
 
 ```bash
-## inside your project root:
-../../../scripts/linux/generateCMake.sh .
+scripts/linux/buildAll.sh
+scripts/osx/buildAll.sh
 ```
 
-3. and build:
+### Build and Test All Examples
+
+Automatically build all examples and run each one by running for 4 seconds:
 
 ```bash
-mkdir build && cd build
-cmake .. && make -j$(nproc)
-make run
+scripts/macos/buildAndTestAll.sh
 ```
 
-### Using Addons
+## Supported Addons
 
-As usual, simply put the addons in `addons.make` file in your project root:
-
-```
-ofxOsc
-ofxOpenCv
-ofxAutoReloadedShader
-```
+The system has been tested and works with most of the built-in addons(OF v.0.12.1) - breaks with ofxKinect
 
 
-### Adding External Libraries
+## Technical Details
 
-In your CMakeLists.txt, uncomment and customize:
+### Addon Configuration
 
-```cmake
-# Add custom library
-of_add_custom_library(${PROJECT_NAME} "MyLib" "/path/to/lib.a" "/path/to/headers")
-```
+The system automatically parses `addon_config.mk` files and handles:
 
-## Architecture
+- Platform-specific source exclusions (`common:`, `osx:`, `linux:`, `vs:` sections)
+- Include directory exclusions
+- Library dependencies and linking
+- Framework linking (macOS)
+- PKG-config integration
 
-```
-openFrameworks/
-├── libs/openFrameworks/cmake/
-│   ├── openFrameworks.cmake      # Main module (276 lines)
-│   └── platform/
-│       ├── Linux.cmake          # Linux-specific config
-│       ├── Darwin.cmake         # macOS-specific config
-│       └── Windows.cmake        # Windows-specific config
-└── scripts/linux/
-    ├── generateCMake.sh          # CMakeLists.txt generator
-    └── buildAllExamples_cmake.sh # Bulk build tool
-```
+### Build Optimizations
 
-## Supported Platforms
-
-- **Linux** (x64) - Fully tested
-- **macOS** - ready (needs testing)
-- **Windows** - ready (needs testing)
-
-## Addon Compatibility
-
-Tested with standard openFrameworks addons:
-
-- ✅ ofxOsc
-- ✅ ofxOpenCv  
-- ✅ ofxAssimp
-- ✅ ofxGui
-- ✅ And many more...
-
-The system automatically:
-- Processes `addons.make` files
-- Handles platform-specific source exclusions
-- Manages library dependencies
-- Includes all necessary headers
+- Intelligent dependency caching
+- Minimal rebuild on source changes
+- Proper header dependency tracking
 
 ## Troubleshooting
 
-### CMake not found
+### Common Issues
+
+1. **Missing libraries**: The system automatically detects most dependencies, but some may need manual installation
+2. **Platform-specific compilation errors**: Check that platform exclusions in `addon_config.mk` are properly configured
+3. **Framework linking issues (macOS)**: Ensure Xcode command line tools are installed
+
+### Debug Output
+
+For verbose CMake output with debugging information:
+
 ```bash
-# Ubuntu/Debian
-sudo apt install cmake
-
-# macOS
-brew install cmake
-
-# Check version (3.10+ required)
-cmake --version
+cmake .. -DCMAKE_VERBOSE_MAKEFILE=ON
 ```
 
-### Build errors
-1. Ensure openFrameworks is properly compiled:
+### Build System Updates
+
+If you update the ofxCmakeBuilder source, reinstall with:
+
 ```bash
-cd /path/to/openframeworks
-scripts/linux/compileOF.sh
+./install-cmake-system.sh /path/to/openframeworks
 ```
-
-2. Clean and rebuild:
-```bash
-rm -rf build
-mkdir build && cd build
-cmake .. && make -j4
-```
-
-### Permission issues
-```bash
-chmod +x scripts/linux/*.sh
-```
-
-## Contributing
-
-This system is designed to be community-driven. Contributions welcome for:
-
-- Additional platform support
-- Addon compatibility improvements  
-- Performance optimizations
-- Documentation enhancements
-
 ## License
 
 MIT License
