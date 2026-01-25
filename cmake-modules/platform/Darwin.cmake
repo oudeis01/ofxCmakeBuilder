@@ -65,8 +65,8 @@ function(of_configure_platform target_name)
     message(STATUS "     Linking openFrameworks libraries:")
     
     # Core libraries (most likely to exist)
-    of_link_library_if_exists(${target_name} "${OF_ROOT}/cmake-modules/libs/tess2/lib/${OF_PLATFORM}/tess2.a")
-    of_link_library_if_exists(${target_name} "${OF_ROOT}/cmake-modules/libs/glew/lib/${OF_PLATFORM}/glew.a")
+    of_link_library_if_exists(${target_name} "${OF_ROOT}/libs/tess2/lib/${OF_PLATFORM}/tess2.a")
+    of_link_library_if_exists(${target_name} "${OF_ROOT}/libs/glew/lib/${OF_PLATFORM}/glew.a")
     of_link_library_if_exists(${target_name} "${OF_ROOT}/libs/glfw/lib/${OF_PLATFORM}/glfw3.a")
     
     # Image processing libraries
