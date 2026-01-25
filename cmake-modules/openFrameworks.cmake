@@ -158,45 +158,63 @@ if(DO_BUILD_CORE)
     
     find_package(PkgConfig REQUIRED)
     
-    # Check for GTK
-    pkg_check_modules(GTK3 gtk+-3.0)
-    if(GTK3_FOUND)
-        target_compile_definitions(openFrameworks PRIVATE OF_USING_GTK)
-        target_link_libraries(openFrameworks PRIVATE ${GTK3_LIBRARIES})
-        target_include_directories(openFrameworks PRIVATE ${GTK3_INCLUDE_DIRS})
-    else()
-        pkg_check_modules(GTK2 gtk+-2.0)
-        if(GTK2_FOUND)
+    if(UNIX AND NOT APPLE) # Linux
+        # Check for GTK
+        pkg_check_modules(GTK3 gtk+-3.0)
+        if(GTK3_FOUND)
             target_compile_definitions(openFrameworks PRIVATE OF_USING_GTK)
-            target_link_libraries(openFrameworks PRIVATE ${GTK2_LIBRARIES})
-            target_include_directories(openFrameworks PRIVATE ${GTK2_INCLUDE_DIRS})
+            target_link_libraries(openFrameworks PRIVATE ${GTK3_LIBRARIES})
+            target_include_directories(openFrameworks PRIVATE ${GTK3_INCLUDE_DIRS})
+        else()
+            pkg_check_modules(GTK2 gtk+-2.0)
+            if(GTK2_FOUND)
+                target_compile_definitions(openFrameworks PRIVATE OF_USING_GTK)
+                target_link_libraries(openFrameworks PRIVATE ${GTK2_LIBRARIES})
+                target_include_directories(openFrameworks PRIVATE ${GTK2_INCLUDE_DIRS})
+            endif()
         endif()
+        
+        # Check for MPG123
+        pkg_check_modules(MPG123 libmpg123)
+        if(MPG123_FOUND)
+            target_compile_definitions(openFrameworks PRIVATE OF_USING_MPG123)
+            target_link_libraries(openFrameworks PRIVATE ${MPG123_LIBRARIES})
+            target_include_directories(openFrameworks PRIVATE ${MPG123_INCLUDE_DIRS})
+        endif()
+        
+        # Check for GStreamer
+        pkg_check_modules(GSTREAMER REQUIRED 
+            gstreamer-1.0 
+            gstreamer-base-1.0 
+            gstreamer-video-1.0 
+            gstreamer-app-1.0
+        )
+        target_link_libraries(openFrameworks PRIVATE ${GSTREAMER_LIBRARIES})
+        target_include_directories(openFrameworks PRIVATE ${GSTREAMER_INCLUDE_DIRS})
+        
+        # Check for other system libraries
+        pkg_check_modules(SYSTEM_LIBS REQUIRED
+            cairo zlib libudev freetype2 fontconfig sndfile openal openssl libcurl glfw3 rtaudio alsa gl glu glew
+        )
+        target_link_libraries(openFrameworks PRIVATE ${SYSTEM_LIBS_LIBRARIES})
+        target_include_directories(openFrameworks PRIVATE ${SYSTEM_LIBS_INCLUDE_DIRS})
+
+    elseif(APPLE) # macOS
+        # On macOS, most dependencies are handled via frameworks
+        target_compile_definitions(openFrameworks PRIVATE __MACOSX_CORE__)
+        
+        # Find required macOS frameworks for core compilation
+        foreach(FW OpenGL Cocoa CoreFoundation IOKit CoreAudio AudioToolbox AudioUnit Accelerate CoreVideo AVFoundation CoreMedia QuartzCore Security CoreServices ApplicationServices)
+            find_library(FRAMEWORK_${FW} ${FW})
+            if(FRAMEWORK_${FW})
+                target_link_libraries(openFrameworks PRIVATE ${FRAMEWORK_${FW}})
+            endif()
+        endforeach()
+        
+        # System zlib
+        find_package(ZLIB REQUIRED)
+        target_link_libraries(openFrameworks PRIVATE ZLIB::ZLIB)
     endif()
-    
-    # Check for MPG123
-    pkg_check_modules(MPG123 libmpg123)
-    if(MPG123_FOUND)
-        target_compile_definitions(openFrameworks PRIVATE OF_USING_MPG123)
-        target_link_libraries(openFrameworks PRIVATE ${MPG123_LIBRARIES})
-        target_include_directories(openFrameworks PRIVATE ${MPG123_INCLUDE_DIRS})
-    endif()
-    
-    # Check for GStreamer
-    pkg_check_modules(GSTREAMER REQUIRED 
-        gstreamer-1.0 
-        gstreamer-base-1.0 
-        gstreamer-video-1.0 
-        gstreamer-app-1.0
-    )
-    target_link_libraries(openFrameworks PRIVATE ${GSTREAMER_LIBRARIES})
-    target_include_directories(openFrameworks PRIVATE ${GSTREAMER_INCLUDE_DIRS})
-    
-    # Check for other system libraries
-    pkg_check_modules(SYSTEM_LIBS REQUIRED
-        cairo zlib libudev freetype2 fontconfig sndfile openal openssl libcurl glfw3 rtaudio alsa gl glu glew
-    )
-    target_link_libraries(openFrameworks PRIVATE ${SYSTEM_LIBS_LIBRARIES})
-    target_include_directories(openFrameworks PRIVATE ${SYSTEM_LIBS_INCLUDE_DIRS})
     
     # Standard Filesystem Support
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
@@ -205,14 +223,24 @@ if(DO_BUILD_CORE)
     target_compile_definitions(openFrameworks PRIVATE OF_USING_STD_FS=1)
     
     # Basic Compiler Flags
-    target_compile_options(openFrameworks PRIVATE
-        -Wall
-        -Werror=return-type
-        -std=c++17
-        -pthread
-        -Wno-deprecated-declarations
-        -Wno-unused-parameter
-    )
+    if(UNIX AND NOT APPLE)
+        target_compile_options(openFrameworks PRIVATE
+            -Wall
+            -Werror=return-type
+            -std=c++17
+            -pthread
+            -Wno-deprecated-declarations
+            -Wno-unused-parameter
+        )
+    elseif(APPLE)
+        target_compile_options(openFrameworks PRIVATE
+            -Wall
+            -std=c++17
+            -stdlib=libc++
+            -Wno-deprecated-declarations
+            -Wno-unused-parameter
+        )
+    endif()
     
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
         target_compile_options(openFrameworks PRIVATE -O3)

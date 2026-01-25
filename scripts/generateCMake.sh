@@ -14,12 +14,24 @@ if [ -f "$(dirname $0)/../../libs/openFrameworks/cmake/openFrameworks.cmake" ]; 
 elif [ -f "$(dirname $0)/../../../libs/openFrameworks/cmake/openFrameworks.cmake" ]; then
     OF_ROOT="$(cd $(dirname $0)/../../..; pwd -P)"
 else
-    if [ -n "$OF_ROOT" ] && [ -f "$OF_ROOT/libs/openFrameworks/cmake/openFrameworks.cmake" ]; then
-        OF_ROOT="$(cd "$OF_ROOT"; pwd -P)"
-    else
-        echo "[Error] Cannot find openFrameworks installation"
-        echo "   Please ensure openFrameworks.cmake exists in libs/openFrameworks/cmake/"
-        exit 1
+    # Try to find a sibling directory that looks like OF
+    PARENT_DIR="$(cd $(dirname $0)/../..; pwd -P)"
+    for dir in "$PARENT_DIR"/*; do
+        if [ -d "$dir/libs/openFrameworks/cmake" ]; then
+            OF_ROOT="$(cd "$dir"; pwd -P)"
+            break
+        fi
+    done
+    
+    if [ -z "$OF_ROOT" ]; then
+        if [ -n "$OF_ROOT" ] && [ -f "$OF_ROOT/libs/openFrameworks/cmake/openFrameworks.cmake" ]; then
+            OF_ROOT="$(cd "$OF_ROOT"; pwd -P)"
+        else
+            echo "[Error] Cannot find openFrameworks installation"
+            echo "   Currently detected OF_ROOT: $OF_ROOT"
+            echo "   Please set OF_ROOT environment variable: export OF_ROOT=/path/to/of"
+            exit 1
+        fi
     fi
 fi
 
