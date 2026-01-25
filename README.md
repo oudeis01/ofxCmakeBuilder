@@ -4,7 +4,7 @@
 
 ## Features
 
-- **Cross-platform**: Works on `linux64`, `macOS`. Windows support will come soon
+- **Cross-platform**: Works on `linux64` and `macOS` (Windows support is currently WIP)
 - **Addon support**: Automatically detects and configures addons with their dependencies, by parsing the conventional addons.make
 - **Platform-specific exclusions**: Properly handles platform-specific source/include exclusions from `addon_config.mk`
 - **Dynamic dependency detection**: Automatically finds and links system libraries and frameworks
@@ -95,6 +95,12 @@ For all examples:
 
 ```bash
 scripts/cmake-scripts/generateCMake.sh all
+```
+
+### Build All Examples
+
+```bash
+scripts/cmake-scripts/buildAll.sh
 ```
 
 ### Build All Examples
