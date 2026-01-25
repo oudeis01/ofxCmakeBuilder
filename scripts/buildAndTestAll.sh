@@ -20,9 +20,16 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-OF_ROOT="${OF_ROOT:-$(dirname $(dirname $(realpath $0)))}"
-TEST_DURATION=4  # seconds to run each test
+OF_ROOT="${OF_ROOT:-$(dirname $(dirname $(dirname $(realpath $0))))}"
+TEST_DURATION=${1:-4}  # seconds to run each test (from argument or default 4)
 PARALLEL_JOBS=4
+
+# Simple help message
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo "Usage: $0 [test_duration_seconds]"
+    echo "Example: $0 10  # Run each test for 10 seconds"
+    exit 0
+fi
 
 echo -e "${BLUE}====================================${NC}"
 echo -e "${BLUE}openFrameworks CMake Build & Test All${NC}"

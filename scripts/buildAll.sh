@@ -20,7 +20,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-OF_ROOT="${OF_ROOT:-$(dirname $(dirname $(realpath $0)))}"
+OF_ROOT="${OF_ROOT:-$(dirname $(dirname $(dirname $(realpath $0))))}"
 PARALLEL_JOBS=4
 
 echo -e "${BLUE}====================================${NC}"
