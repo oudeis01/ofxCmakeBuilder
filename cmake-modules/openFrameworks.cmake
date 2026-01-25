@@ -25,7 +25,7 @@ message(STATUS "Loading openFrameworks CMake Module...")
 
 # Find openFrameworks root directory
 if(NOT DEFINED OF_ROOT)
-    get_filename_component(OF_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+    get_filename_component(OF_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 endif()
 
 message(STATUS "openFrameworks root: ${OF_ROOT}")
@@ -55,27 +55,244 @@ endif()
 message(STATUS "Platform: ${OF_PLATFORM}")
 
 # ===================================
-# Precompiled Library Detection
-# ===================================
+# Precompiled Library Detection OR Build from Source (Smart Mode)
+# ==============================================================================
 
-set(OF_CORE_LIB_PATH "${OF_ROOT}/libs/openFrameworksCompiled/lib/${OF_PLATFORM}")
-set(OF_CORE_LIB_DEBUG "${OF_CORE_LIB_PATH}/libopenFrameworksDebug.a")
-set(OF_CORE_LIB_RELEASE "${OF_CORE_LIB_PATH}/libopenFrameworks.a")
+# Options for Core Build
+option(OF_FORCE_BUILD_CORE "Force rebuild of openFrameworks core" OFF)
+set(OF_CORE_SCOPE "GLOBAL" CACHE STRING "Scope of core lib: GLOBAL (shared) or LOCAL (project-only)")
+set_property(CACHE OF_CORE_SCOPE PROPERTY STRINGS "GLOBAL" "LOCAL")
 
-# Smart library selection (Debug preferred for better debugging)
-if(EXISTS ${OF_CORE_LIB_DEBUG})
-    set(OF_CORE_LIB "${OF_CORE_LIB_DEBUG}")
-    set(OF_USING_DEBUG TRUE)
-    message(STATUS "Using Debug openFrameworks library")
-elseif(EXISTS ${OF_CORE_LIB_RELEASE})
-    set(OF_CORE_LIB "${OF_CORE_LIB_RELEASE}")
-    set(OF_USING_DEBUG FALSE)
-    message(STATUS "Using Release openFrameworks library")
+# Paths for Global Library
+set(OF_CORE_LIB_DIR "${OF_ROOT}/libs/openFrameworksCompiled/lib/${OF_PLATFORM}")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(OF_CORE_LIB_NAME "libopenFrameworksDebug.a")
 else()
-    message(FATAL_ERROR 
-        "❌ openFrameworks library not found!\n"
-        "Expected location: ${OF_CORE_LIB_PATH}\n"
-        "Please run: scripts/linux/compileOF.sh")
+    set(OF_CORE_LIB_NAME "libopenFrameworks.a")
+endif()
+set(OF_GLOBAL_LIB_FILE "${OF_CORE_LIB_DIR}/${OF_CORE_LIB_NAME}")
+
+# Determine Action Logic
+set(DO_BUILD_CORE FALSE)
+set(DO_COPY_TO_GLOBAL FALSE)
+
+if(OF_CORE_SCOPE STREQUAL "LOCAL")
+    # Case: Scope is LOCAL -> Always build, never copy
+    set(DO_BUILD_CORE TRUE)
+    set(DO_COPY_TO_GLOBAL FALSE)
+    message(STATUS "[Core] Building LOCAL core library (Project-scoped)")
+
+elseif(OF_CORE_SCOPE STREQUAL "GLOBAL")
+    if(OF_FORCE_BUILD_CORE)
+        # Case: Force Build -> Build & Copy
+        set(DO_BUILD_CORE TRUE)
+        set(DO_COPY_TO_GLOBAL TRUE)
+        message(STATUS "[Core] Forced Rebuild: Building and updating GLOBAL library")
+    elseif(NOT EXISTS "${OF_GLOBAL_LIB_FILE}")
+        # Case: Missing Global Lib -> Build & Copy (Auto-init)
+        set(DO_BUILD_CORE TRUE)
+        set(DO_COPY_TO_GLOBAL TRUE)
+        message(STATUS "[Core] Global library missing. Building and installing to: ${OF_GLOBAL_LIB_FILE}")
+    else()
+        # Case: Global Lib Exists -> Link only
+        set(DO_BUILD_CORE FALSE)
+        set(DO_COPY_TO_GLOBAL FALSE)
+        message(STATUS "[Core] Using existing GLOBAL library: ${OF_GLOBAL_LIB_FILE}")
+    endif()
+endif()
+
+# Execution Logic
+if(DO_BUILD_CORE)
+    # Define the openFrameworks core library target
+    add_library(openFrameworks STATIC)
+    
+    # -----------------------------------------------------------------------------
+    # 1. Source Globbing
+    # -----------------------------------------------------------------------------
+    set(OF_CORE_SRC_DIR "${OF_ROOT}/libs/openFrameworks")
+    
+    # Recursively find all source files
+    file(GLOB_RECURSE OF_CORE_SOURCES 
+        "${OF_CORE_SRC_DIR}/*.cpp"
+        "${OF_CORE_SRC_DIR}/*.c"
+        "${OF_CORE_SRC_DIR}/*.cc"
+    )
+    
+    # Recursively find all headers
+    file(GLOB_RECURSE OF_CORE_HEADERS 
+        "${OF_CORE_SRC_DIR}/*.h"
+        "${OF_CORE_SRC_DIR}/*.hpp"
+    )
+    
+    # -----------------------------------------------------------------------------
+    # 2. Exclusions (Matching config.linux.common.mk)
+    # -----------------------------------------------------------------------------
+    
+    # Objective-C/C++ (Mac specific)
+    list(FILTER OF_CORE_SOURCES EXCLUDE REGEX ".*\\.mm$")
+    list(FILTER OF_CORE_SOURCES EXCLUDE REGEX ".*\\.m$")
+    
+    # Windows specific
+    list(FILTER OF_CORE_SOURCES EXCLUDE REGEX ".*/ofDirectShowGrabber\\.cpp$")
+    list(FILTER OF_CORE_SOURCES EXCLUDE REGEX ".*/ofDirectShowPlayer\\.cpp$")
+    list(FILTER OF_CORE_SOURCES EXCLUDE REGEX ".*/ofMediaFoundationPlayer\\.cpp$")
+    list(FILTER OF_CORE_SOURCES EXCLUDE REGEX ".*/ofMediaFoundationSoundPlayer\\.cpp$")
+    
+    # Linux x86_64 specific (Exclude EGL, use GLFW)
+    if(OF_PLATFORM STREQUAL "linux64")
+        list(FILTER OF_CORE_SOURCES EXCLUDE REGEX ".*/ofAppEGLWindow\\.cpp$")
+    endif()
+    
+    # Android/iOS specific
+    list(FILTER OF_CORE_SOURCES EXCLUDE REGEX ".*/android/.*")
+    list(FILTER OF_CORE_SOURCES EXCLUDE REGEX ".*/ios/.*")
+    
+    # -----------------------------------------------------------------------------
+    # 3. Apply Sources to Target
+    # -----------------------------------------------------------------------------
+    target_sources(openFrameworks PRIVATE ${OF_CORE_SOURCES} ${OF_CORE_HEADERS})
+    
+    # -----------------------------------------------------------------------------
+    # 4. Compiler Flags & Definitions
+    # -----------------------------------------------------------------------------
+    
+    find_package(PkgConfig REQUIRED)
+    
+    # Check for GTK
+    pkg_check_modules(GTK3 gtk+-3.0)
+    if(GTK3_FOUND)
+        target_compile_definitions(openFrameworks PRIVATE OF_USING_GTK)
+        target_link_libraries(openFrameworks PRIVATE ${GTK3_LIBRARIES})
+        target_include_directories(openFrameworks PRIVATE ${GTK3_INCLUDE_DIRS})
+    else()
+        pkg_check_modules(GTK2 gtk+-2.0)
+        if(GTK2_FOUND)
+            target_compile_definitions(openFrameworks PRIVATE OF_USING_GTK)
+            target_link_libraries(openFrameworks PRIVATE ${GTK2_LIBRARIES})
+            target_include_directories(openFrameworks PRIVATE ${GTK2_INCLUDE_DIRS})
+        endif()
+    endif()
+    
+    # Check for MPG123
+    pkg_check_modules(MPG123 libmpg123)
+    if(MPG123_FOUND)
+        target_compile_definitions(openFrameworks PRIVATE OF_USING_MPG123)
+        target_link_libraries(openFrameworks PRIVATE ${MPG123_LIBRARIES})
+        target_include_directories(openFrameworks PRIVATE ${MPG123_INCLUDE_DIRS})
+    endif()
+    
+    # Check for GStreamer
+    pkg_check_modules(GSTREAMER REQUIRED 
+        gstreamer-1.0 
+        gstreamer-base-1.0 
+        gstreamer-video-1.0 
+        gstreamer-app-1.0
+    )
+    target_link_libraries(openFrameworks PRIVATE ${GSTREAMER_LIBRARIES})
+    target_include_directories(openFrameworks PRIVATE ${GSTREAMER_INCLUDE_DIRS})
+    
+    # Check for other system libraries
+    pkg_check_modules(SYSTEM_LIBS REQUIRED
+        cairo zlib libudev freetype2 fontconfig sndfile openal openssl libcurl glfw3 rtaudio alsa gl glu glew
+    )
+    target_link_libraries(openFrameworks PRIVATE ${SYSTEM_LIBS_LIBRARIES})
+    target_include_directories(openFrameworks PRIVATE ${SYSTEM_LIBS_INCLUDE_DIRS})
+    
+    # Standard Filesystem Support
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+        target_link_libraries(openFrameworks PRIVATE stdc++fs)
+    endif()
+    target_compile_definitions(openFrameworks PRIVATE OF_USING_STD_FS=1)
+    
+    # Basic Compiler Flags
+    target_compile_options(openFrameworks PRIVATE
+        -Wall
+        -Werror=return-type
+        -std=c++17
+        -pthread
+        -Wno-deprecated-declarations
+        -Wno-unused-parameter
+    )
+    
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_compile_options(openFrameworks PRIVATE -O3)
+    else()
+        target_compile_options(openFrameworks PRIVATE -g3)
+    endif()
+    
+    # -----------------------------------------------------------------------------
+    # 5. Include Directories
+    # -----------------------------------------------------------------------------
+    target_include_directories(openFrameworks PUBLIC
+        "${OF_CORE_SRC_DIR}"
+        "${OF_CORE_SRC_DIR}/3d"
+        "${OF_CORE_SRC_DIR}/app"
+        "${OF_CORE_SRC_DIR}/communication"
+        "${OF_CORE_SRC_DIR}/events"
+        "${OF_CORE_SRC_DIR}/gl"
+        "${OF_CORE_SRC_DIR}/graphics"
+        "${OF_CORE_SRC_DIR}/math"
+        "${OF_CORE_SRC_DIR}/sound"
+        "${OF_CORE_SRC_DIR}/types"
+        "${OF_CORE_SRC_DIR}/utils"
+        "${OF_CORE_SRC_DIR}/video"
+    )
+    
+    # -----------------------------------------------------------------------------
+    # 6. Internal Dependencies
+    # -----------------------------------------------------------------------------
+    target_link_libraries(openFrameworks PRIVATE
+        "${OF_ROOT}/libs/kiss/lib/${OF_PLATFORM}/libkiss.a"
+        "${OF_ROOT}/libs/tess2/lib/${OF_PLATFORM}/libtess2.a"
+    )
+    
+    target_include_directories(openFrameworks PUBLIC
+        "${OF_ROOT}/libs/kiss/include"
+        "${OF_ROOT}/libs/tess2/include"
+        "${OF_ROOT}/libs/utf8/include"
+        "${OF_ROOT}/libs/json/include"
+        "${OF_ROOT}/libs/glm/include"
+    )
+    
+    set(OF_CORE_LIB openFrameworks)
+    set(OF_USING_DEBUG FALSE) # Can be improved to detect build type
+    message(STATUS "   [Core] openFrameworks core target defined.")
+    
+    # -----------------------------------------------------------------------------
+    # 7. Copy to Global (If enabled)
+    # -----------------------------------------------------------------------------
+    if(DO_COPY_TO_GLOBAL)
+        message(STATUS "   [Core] Auto-Install enabled: Library will be copied to ${OF_GLOBAL_LIB_FILE}")
+        
+        # Ensure directory exists
+        file(MAKE_DIRECTORY "${OF_CORE_LIB_DIR}")
+        
+        add_custom_command(TARGET openFrameworks POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:openFrameworks>" "${OF_GLOBAL_LIB_FILE}"
+            COMMENT "Installing libopenFrameworks.a to global cache..."
+        )
+    endif()
+
+else()
+    # ===================================
+    # Link Existing Global Library
+    # ===================================
+    
+    # We create an IMPORTED target so it looks like a normal target to the consumer
+    add_library(openFrameworks STATIC IMPORTED)
+    set_target_properties(openFrameworks PROPERTIES
+        IMPORTED_LOCATION "${OF_GLOBAL_LIB_FILE}"
+    )
+    
+    set(OF_CORE_LIB openFrameworks)
+    
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(OF_USING_DEBUG TRUE)
+    else()
+        set(OF_USING_DEBUG FALSE)
+    endif()
+    
+    message(STATUS "   [Core] Linked existing openFrameworks core: ${OF_GLOBAL_LIB_FILE}")
 endif()
 
 # ===================================
@@ -207,10 +424,10 @@ function(of_add_include_if_exists target_name include_path)
         target_include_directories(${target_name} PRIVATE ${include_path})
         # Extract meaningful path info relative to OF_ROOT
         string(REPLACE "${OF_ROOT}/" "" relative_path "${include_path}")
-        message(STATUS "       ✅ Include: ${relative_path}")
+        message(STATUS "       [Include] ${relative_path}")
     else()
         string(REPLACE "${OF_ROOT}/" "" relative_path "${include_path}")
-        message(STATUS "       ⚠️  Skipped missing: ${relative_path}")
+        message(STATUS "       [Skipped] missing: ${relative_path}")
     endif()
 endfunction()
 
@@ -321,7 +538,7 @@ function(of_add_addon target_name addon_name)
                 endif()
                 
                 list(LENGTH ADDON_LIB_SOURCES lib_source_count)
-                message(STATUS "          📁 Added ${lib_source_count} library source files")
+                message(STATUS "          [Addon] Added ${lib_source_count} library source files")
                 
                 # Debug: show first few files
                 list(LENGTH ADDON_LIB_SOURCES total_count)
@@ -393,18 +610,18 @@ function(of_add_addon target_name addon_name)
                     file(GLOB_RECURSE ADDON_DYNAMIC_LIBS "${addon_lib_path}/*.dylib" "${addon_lib_path}/*.so" "${addon_lib_path}/*.dll")
                     
                     if(ADDON_STATIC_LIBS OR ADDON_DYNAMIC_LIBS)
-                        message(STATUS "          🔗 Linking addon libraries:")
+                        message(STATUS "          [Link] Linking addon libraries:")
                         
                         foreach(LIB ${ADDON_STATIC_LIBS})
                             target_link_libraries(${target_name} PRIVATE ${LIB})
                             get_filename_component(lib_name ${LIB} NAME)
-                            message(STATUS "             ✅ Static: ${lib_name}")
+                            message(STATUS "             [Static] ${lib_name}")
                         endforeach()
                         
                         foreach(LIB ${ADDON_DYNAMIC_LIBS})
                             target_link_libraries(${target_name} PRIVATE ${LIB})
                             get_filename_component(lib_name ${LIB} NAME)
-                            message(STATUS "             ✅ Dynamic: ${lib_name}")
+                            message(STATUS "             [Dynamic] ${lib_name}")
                         endforeach()
                     endif()
                 endif()
@@ -442,14 +659,14 @@ function(of_add_addon target_name addon_name)
                         set(exclude_pattern "${CMAKE_MATCH_1}")
                         string(STRIP "${exclude_pattern}" exclude_pattern)
                         list(APPEND exclude_patterns "${exclude_pattern}")
-                        message(STATUS "          📋 Found exclusion (${current_section}): ${exclude_pattern}")
+                        message(STATUS "          [Config] Found exclusion (${current_section}): ${exclude_pattern}")
                     endif()
                 elseif("${TRIMMED_LINE}" MATCHES "^[ \t]*ADDON_INCLUDES_EXCLUDE[ \t]*=[ \t]*(.+)$")
                     if("${current_section}" STREQUAL "common" OR "${current_section}" STREQUAL "${platform_section}")
                         set(exclude_pattern "${CMAKE_MATCH_1}")
                         string(STRIP "${exclude_pattern}" exclude_pattern)
                         list(APPEND exclude_patterns "${exclude_pattern}")
-                        message(STATUS "          📋 Found include exclusion (${current_section}): ${exclude_pattern}")
+                        message(STATUS "          [Config] Found include exclusion (${current_section}): ${exclude_pattern}")
                     endif()
                 endif()
             endforeach()
@@ -467,7 +684,7 @@ function(of_add_addon target_name addon_name)
                         list(LENGTH ADDON_LIB_CPP_SOURCES new_count)
                         math(EXPR excluded_count "${orig_count} - ${new_count}")
                         if(excluded_count GREATER 0)
-                            message(STATUS "          🚫 Excluded ${excluded_count} C++ files matching: ${exclude_pattern}")
+                            message(STATUS "          [Exclude] Excluded ${excluded_count} C++ files matching: ${exclude_pattern}")
                         endif()
                     endif()
                     
@@ -477,7 +694,7 @@ function(of_add_addon target_name addon_name)
                         list(LENGTH ADDON_LIB_C_SOURCES new_count)
                         math(EXPR excluded_count "${orig_count} - ${new_count}")
                         if(excluded_count GREATER 0)
-                            message(STATUS "          🚫 Excluded ${excluded_count} C files matching: ${exclude_pattern}")
+                            message(STATUS "          [Exclude] Excluded ${excluded_count} C files matching: ${exclude_pattern}")
                         endif()
                     endif()
                 endforeach()
@@ -506,7 +723,7 @@ function(of_add_addon target_name addon_name)
             if(EXISTS "${windows_platform_dir}")
                 set(backup_dir "${windows_platform_dir}_backup_${CMAKE_BUILD_TYPE}")
                 if(NOT EXISTS "${backup_dir}")
-                    message(STATUS "          🔧 Temporarily moving Windows platform headers to avoid conflicts")
+                    message(STATUS "          [Workaround] Temporarily moving Windows platform headers to avoid conflicts")
                     file(RENAME "${windows_platform_dir}" "${backup_dir}")
                     
                     # Restore original directory on build completion
@@ -520,7 +737,7 @@ function(of_add_addon target_name addon_name)
         
         message(STATUS "       Successfully added addon: ${addon_name}")
     else()
-        message(WARNING "⚠️  Addon not found: ${addon_name} (${addon_path})")
+        message(WARNING "[Warning] Addon not found: ${addon_name} (${addon_path})")
     endif()
 endfunction()
 
@@ -554,13 +771,13 @@ function(of_setup_build_output target_name)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${FMOD_DYLIB}"
             "${CMAKE_CURRENT_SOURCE_DIR}/bin/libfmod.dylib"
-            COMMENT "   📦 Copying libfmod.dylib to bin"
+            COMMENT "   [Setup] Copying libfmod.dylib to bin"
         )
         
         # Fix the executable's library search paths using install_name_tool
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND install_name_tool -change "@executable_path/../Frameworks/libfmod.dylib" "@executable_path/libfmod.dylib" "${CMAKE_CURRENT_SOURCE_DIR}/bin/${target_name}" 2>/dev/null || true
-            COMMENT "   🔧 Fixing library paths in executable"
+            COMMENT "   [Setup] Fixing library paths in executable"
             VERBATIM
         )
     endif()
@@ -575,7 +792,7 @@ function(of_setup_build_output target_name)
     add_custom_target(run
         COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/bin/${target_name}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        COMMENT "🏃 Running ${target_name}..."
+        COMMENT "Running ${target_name}..."
         USES_TERMINAL
     )
     
@@ -619,10 +836,10 @@ function(of_add_library target_name library_name)
                 target_include_directories(${target_name} PRIVATE ${${library_name}_INCLUDE_DIRS})
                 message(STATUS "     Added ${library_name} library (via pkg-config)")
             else()
-                message(WARNING "⚠️  Library not found: ${library_name}")
+                message(WARNING "[Warning] Library not found: ${library_name}")
             endif()
         else()
-            message(WARNING "⚠️  Library not found: ${library_name} (no pkg-config)")
+            message(WARNING "[Warning] Library not found: ${library_name} (no pkg-config)")
         endif()
     endif()
 endfunction()
@@ -631,12 +848,18 @@ endfunction()
 function(of_add_custom_library target_name lib_name lib_path include_path)
     if(EXISTS ${lib_path})
         target_link_libraries(${target_name} PRIVATE ${lib_path})
-        if(EXISTS ${include_path})
-            target_include_directories(${target_name} PRIVATE ${include_path})
-        endif()
+    if(EXISTS ${include_path})
+        target_include_directories(${target_name} PRIVATE ${include_path})
+        # Extract meaningful path info relative to OF_ROOT
+        string(REPLACE "${OF_ROOT}/" "" relative_path "${include_path}")
+        message(STATUS "       [Include] ${relative_path}")
+    else()
+        string(REPLACE "${OF_ROOT}/" "" relative_path "${include_path}")
+        message(STATUS "       [Skipped] missing: ${relative_path}")
+    endif()
         message(STATUS "     Added custom library: ${lib_name}")
     else()
-        message(WARNING "⚠️  Custom library not found: ${lib_path}")
+        message(WARNING "[Warning] Custom library not found: ${lib_path}")
     endif()
 endfunction()
 

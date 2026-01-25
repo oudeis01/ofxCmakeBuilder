@@ -9,16 +9,16 @@ export LC_ALL=C
 SCRIPT_DIR="$(cd $(dirname $0); pwd)"
 
 # auto detect OF_ROOT
-if [ -f "$(dirname $0)/../../cmake-modules/platform/openFrameworks.cmake" ]; then
+if [ -f "$(dirname $0)/../../libs/openFrameworks/cmake/openFrameworks.cmake" ]; then
     OF_ROOT="$(cd $(dirname $0)/../..; pwd -P)"
-elif [ -f "$(dirname $0)/../../../cmake-modules/platform/openFrameworks.cmake" ]; then
+elif [ -f "$(dirname $0)/../../../libs/openFrameworks/cmake/openFrameworks.cmake" ]; then
     OF_ROOT="$(cd $(dirname $0)/../../..; pwd -P)"
 else
-    if [ -n "$OF_ROOT" ] && [ -f "$OF_ROOT/cmake-modules/platform/openFrameworks.cmake" ]; then
+    if [ -n "$OF_ROOT" ] && [ -f "$OF_ROOT/libs/openFrameworks/cmake/openFrameworks.cmake" ]; then
         OF_ROOT="$(cd "$OF_ROOT"; pwd -P)"
     else
-        echo "\u274c Error: Cannot find openFrameworks installation"
-        echo "   Please ensure openFrameworks.cmake exists in cmake-modules/platform/"
+        echo "[Error] Cannot find openFrameworks installation"
+        echo "   Please ensure openFrameworks.cmake exists in libs/openFrameworks/cmake/"
         exit 1
     fi
 fi
@@ -216,12 +216,12 @@ elseif(WIN32)
 endif()
 EOF
 
-    echo "     ✅ Generated CMakeLists.txt for $PROJECT_NAME"
+    echo "     [Success] Generated CMakeLists.txt for $PROJECT_NAME"
 }
 
 # Validates all built-in examples
 validate_examples() {
-    echo "🔍 Validating all examples..."
+    echo "Validating all examples..."
     local TOTAL=0
     local SUCCESS=0
     local FAILED=0
@@ -241,15 +241,15 @@ validate_examples() {
             if [ -d "$example/src" ]; then
                 EXAMPLE_NAME="$(basename $example)"
                 
-                # 상대 경로 계산 테스트
+                # Test relative path calculation
                 RELATIVE_TEST=$(calculate_relative_path "$OF_ROOT" "$example")
                 CMAKE_FILE="$RELATIVE_TEST/libs/openFrameworks/cmake/openFrameworks.cmake"
                 
                 if [ -f "$example/$CMAKE_FILE" ]; then
-                    echo "    ✅ $EXAMPLE_NAME: Path calculation OK"
+                    echo "    [OK] $EXAMPLE_NAME: Path calculation OK"
                     SUCCESS=$((SUCCESS + 1))
                 else
-                    echo "    ❌ $EXAMPLE_NAME: Path calculation failed ($CMAKE_FILE)"
+                    echo "    [Fail] $EXAMPLE_NAME: Path calculation failed ($CMAKE_FILE)"
                     FAILED=$((FAILED + 1))
                 fi
                 
@@ -286,7 +286,7 @@ if [ "$1" = "validate" ]; then
     validate_examples
     exit 0
 elif [ "$1" = "all" ]; then
-    echo "🔄 Generating CMakeLists.txt for all examples..."
+    echo "Generating CMakeLists.txt for all examples..."
     TOTAL=0
     
     for category in $(find "$OF_ROOT/examples" -maxdepth 1 -type d); do
@@ -309,24 +309,24 @@ elif [ "$1" = "all" ]; then
     done
     
     echo ""
-    echo "   ✅ Generated CMakeLists.txt for $TOTAL projects!"
-    echo "   🚀 Ready for build"
+    echo "   [Success] Generated CMakeLists.txt for $TOTAL projects!"
+    echo "   Ready for build"
 else
     PROJECT_DIR="$1"
     if [ ! -d "$PROJECT_DIR" ]; then
-        echo "❌ Directory not found: $PROJECT_DIR"
+        echo "[Error] Directory not found: $PROJECT_DIR"
         exit 1
     fi
     
     if [ ! -d "$PROJECT_DIR/src" ]; then
-        echo "❌ No src directory found in: $PROJECT_DIR"
+        echo "[Error] No src directory found in: $PROJECT_DIR"
         echo "   This doesn't appear to be an openFrameworks project"
         exit 1
     fi
     
     generate_cmakelists "$PROJECT_DIR"
     echo ""
-    echo "   🎉 Done! You can now build with:"
+    echo "   [Done] You can now build with:"
     echo "   cd $PROJECT_DIR && mkdir -p build && cd build"
     echo "   cmake .. && make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
     echo ""

@@ -80,7 +80,7 @@ for i in "${!EXAMPLE_DIRS[@]}"; do
     popd > /dev/null 2>&1
 
     if [ $build_status -eq 0 ]; then
-        echo -e "${GREEN}✔ Build: $category_name/$example_name${NC}"
+        echo -e "${GREEN}[OK] Build: $category_name/$example_name${NC}"
         ((successful_builds++))
         
         # Test the executable
@@ -95,21 +95,21 @@ for i in "${!EXAMPLE_DIRS[@]}"; do
             
             # Check if test was successful (timeout exit code is 124)
             if [ $test_exit_code -eq 124 ] || [ $test_exit_code -eq 0 ]; then
-                echo -e "${GREEN}✔ Test: $category_name/$example_name${NC}"
+                echo -e "${GREEN}[OK] Test: $category_name/$example_name${NC}"
                 ((successful_tests++))
             else
-                echo -e "${RED}✘ Test: $category_name/$example_name${NC}"
+                echo -e "${RED}[Fail] Test: $category_name/$example_name${NC}"
                 ((failed_tests++))
                 FAILED_TESTS+=("$category_name/$example_name")
             fi
         else
-            echo -e "${RED}✘ Test: $category_name/$example_name (executable not found)${NC}"
+            echo -e "${RED}[Fail] Test: $category_name/$example_name (executable not found)${NC}"
             ((failed_tests++))
             FAILED_TESTS+=("$category_name/$example_name")
         fi
         popd > /dev/null 2>&1
     else
-        echo -e "${RED}✘ Build: $category_name/$example_name${NC}"
+        echo -e "${RED}[Fail] Build: $category_name/$example_name${NC}"
         ((failed_builds++))
         ((failed_tests++))
         FAILED_EXAMPLES+=("$category_name/$example_name")

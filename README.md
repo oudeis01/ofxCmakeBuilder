@@ -4,13 +4,14 @@
 
 ## Features
 
-- **Cross-platform**: Works on `Linuxx64`, `macOS`. Windows support will come soon
+- **Cross-platform**: Works on `linux64`, `macOS`. Windows support will come soon
 - **Addon support**: Automatically detects and configures addons with their dependencies, by parsing the conventional addons.make
 - **Platform-specific exclusions**: Properly handles platform-specific source/include exclusions from `addon_config.mk`
 - **Dynamic dependency detection**: Automatically finds and links system libraries and frameworks
 - **Automated testing**: Build and test all examples
 - **Reuse of Precompiled Core Library**: Precompiled library reuse eliminates redundant compilation
 - **Respect Original Project Structure**: Executables automatically moved to bin/ folder
+- **Smart Core Build**: Automatically builds the core library if missing, or links to the existing one
 
 ## Example CMakeLists.txt (8 lines)
 ```cmake
@@ -79,8 +80,7 @@ For a single project:
 
 ```bash
 cd /path/to/openframeworks
-scripts/linux/generateCMake.sh examples/3d/3DPrimitivesExample
-scripts/osx/generateCMake.sh examples/3d/3DPrimitivesExample
+scripts/cmake-scripts/generateCMake.sh examples/3d/3DPrimitivesExample
 ```
 ### Build a Project
 
@@ -94,15 +94,13 @@ make run
 For all examples:
 
 ```bash
-scripts/linux/generateCMake.sh all
-scripts/osx/generateCMake.sh all
+scripts/cmake-scripts/generateCMake.sh all
 ```
 
 ### Build All Examples
 
 ```bash
-scripts/linux/buildAll.sh
-scripts/osx/buildAll.sh
+scripts/cmake-scripts/buildAll.sh
 ```
 
 ### Build and Test All Examples
@@ -110,7 +108,7 @@ scripts/osx/buildAll.sh
 Automatically build all examples and run each one by running for 4 seconds:
 
 ```bash
-scripts/macos/buildAndTestAll.sh
+scripts/cmake-scripts/buildAndTestAll.sh
 ```
 
 ## Supported Addons
@@ -136,13 +134,29 @@ The system automatically parses `addon_config.mk` files and handles:
 - Minimal rebuild on source changes
 - Header dependency tracking
 
-## Troubleshooting
+## Advanced Usage
 
-### Common Issues
+### Build Core from Source
 
-1. **Missing libraries**: The system automatically detects most dependencies, but some may need manual installation
-2. **Platform-specific compilation errors**: Check that platform exclusions in `addon_config.mk` are properly configured
-3. **Framework linking issues (macOS)**: Ensure Xcode command line tools are installed
+By default, the system automatically checks for the pre-compiled core library in `libs/openFrameworksCompiled/lib/`.
+- If found: It links against it (Fast build).
+- If missing: It automatically builds the core from source and installs it to the global location (First run optimization).
+
+You can control this behavior with the following options:
+
+#### 1. Force Rebuild Core
+To force a rebuild of the global core library (e.g. after updating OF source):
+
+```bash
+cmake -DOF_FORCE_BUILD_CORE=ON ..
+```
+
+#### 2. Project-Specific Core (Local Scope)
+To build the core only for *this* project without affecting the global shared library (useful for testing core modifications):
+
+```bash
+cmake -DOF_CORE_SCOPE=LOCAL ..
+```
 
 ### Debug Output
 
@@ -160,6 +174,15 @@ If you update the ofxCmakeBuilder source, reinstall with:
 ./install-cmake-system.sh /path/to/openframeworks
 ```
 
+## Troubleshooting
+
+### Common Issues
+
+1. **Missing libraries**: The system automatically detects most dependencies, but some may need manual installation
+2. **Platform-specific compilation errors**: Check that platform exclusions in `addon_config.mk` are properly configured
+3. **Framework linking issues (macOS)**: Ensure Xcode command line tools are installed
+
 ## License
 
 MIT License
+

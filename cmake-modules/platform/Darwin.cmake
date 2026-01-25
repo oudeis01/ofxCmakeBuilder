@@ -9,10 +9,10 @@ function(of_link_library_if_exists target_name lib_path)
     if(EXISTS ${lib_path})
         target_link_libraries(${target_name} PRIVATE ${lib_path})
         get_filename_component(lib_name ${lib_path} NAME)
-        message(STATUS "     ✅ Linked: ${lib_name}")
+        message(STATUS "     [Linked] ${lib_name}")
     else()
         get_filename_component(lib_name ${lib_path} NAME)
-        message(STATUS "     ⚠️  Skipped missing: ${lib_name}")
+        message(STATUS "     [Skipped] missing: ${lib_name}")
     endif()
 endfunction()
 
@@ -115,18 +115,18 @@ function(of_macos_post_build target_name)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${FMOD_DYLIB}"
             "${CMAKE_CURRENT_SOURCE_DIR}/bin/libfmod.dylib"
-            COMMENT "   📦 Copying libfmod.dylib to bin"
+            COMMENT "   [Setup] Copying libfmod.dylib to bin"
         )
         
-        message(STATUS "       ✅ Will copy: libfmod.dylib")
+        message(STATUS "       [Setup] Will copy: libfmod.dylib")
     else()
-        message(STATUS "       ⚠️  FMOD library not found at: ${FMOD_DYLIB}")
+        message(STATUS "       [Warning] FMOD library not found at: ${FMOD_DYLIB}")
     endif()
     
     # Fix the executable's library search paths using install_name_tool
     add_custom_command(TARGET ${target_name} POST_BUILD
         COMMAND install_name_tool -change "@executable_path/../Frameworks/libfmod.dylib" "@executable_path/libfmod.dylib" "${CMAKE_CURRENT_SOURCE_DIR}/bin/${target_name}" 2>/dev/null || true
-        COMMENT "   🔧 Fixing library paths in executable"
+        COMMENT "   [Setup] Fixing library paths in executable"
         VERBATIM
     )
 endfunction()

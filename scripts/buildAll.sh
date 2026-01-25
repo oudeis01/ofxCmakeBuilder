@@ -75,10 +75,10 @@ for i in "${!EXAMPLE_DIRS[@]}"; do
     popd > /dev/null 2>&1
 
     if [ $build_status -eq 0 ]; then
-        echo -e "${GREEN}✔ $category_name/$example_name${NC}"
+        echo -e "${GREEN}[OK] $category_name/$example_name${NC}"
         successful_builds=$((successful_builds + 1))
     else
-        echo -e "${RED}✘ $category_name/$example_name${NC}"
+        echo -e "${RED}[Fail] $category_name/$example_name${NC}"
         failed_builds=$((failed_builds + 1))
         FAILED_EXAMPLES+=("$category_name/$example_name")
     fi

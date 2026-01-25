@@ -45,7 +45,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 printf "Installing CMake System...\n"
 
 # Update installation paths
-CMAKE_MODULE_DIR="$OF_ROOT/cmake-modules/platform"
+CMAKE_MODULE_DIR="$OF_ROOT/libs/openFrameworks/cmake"
 SCRIPTS_DIR="$OF_ROOT/scripts/cmake-scripts"
 
 # Create necessary directories
@@ -58,9 +58,10 @@ cp "$SCRIPT_DIR/cmake-modules/openFrameworks.cmake" "$CMAKE_MODULE_DIR/"
 printf "Installed: $CMAKE_MODULE_DIR/openFrameworks.cmake\n"
 
 printf "Installing platform modules...\n"
-cp "$SCRIPT_DIR/cmake-modules/platform/"*.cmake "$CMAKE_MODULE_DIR/"
+mkdir -p "$CMAKE_MODULE_DIR/platform"
+cp "$SCRIPT_DIR/cmake-modules/platform/"*.cmake "$CMAKE_MODULE_DIR/platform/"
 printf "Installed: Platform-specific modules\n"
-printf "\t $CMAKE_MODULE_DIR/*\n"
+printf "\t $CMAKE_MODULE_DIR/platform/*\n"
 
 # 2. Install scripts
 printf "Installing utility scripts...\n"
