@@ -16,6 +16,34 @@ function(of_configure_platform target_name)
         -Wall 
         -pthread
     )
+
+    # Architecture specific flags
+    if(OF_PLATFORM STREQUAL "linuxaarch64")
+        message(STATUS "   [ARM] Applying Raspberry Pi 4/5 (64-bit) flags")
+        target_compile_options(${target_name} PRIVATE
+            -march=armv8-a
+            -mcpu=cortex-a72
+            -mtune=cortex-a72
+            -Wno-psabi
+            -fPIC
+            -ftree-vectorize
+        )
+        target_link_options(${target_name} PRIVATE -no-pie)
+        target_compile_definitions(${target_name} PRIVATE TARGET_RASPBERRY_PI)
+        
+    elseif(OF_PLATFORM STREQUAL "linuxarmv7l")
+        message(STATUS "   [ARM] Applying Raspberry Pi 3/4 (32-bit) flags")
+        target_compile_options(${target_name} PRIVATE
+            -march=armv7-a
+            -mfpu=neon
+            -mfloat-abi=hard
+            -Wno-psabi
+            -fPIC
+            -ftree-vectorize
+        )
+        target_link_options(${target_name} PRIVATE -no-pie)
+        target_compile_definitions(${target_name} PRIVATE TARGET_RASPBERRY_PI)
+    endif()
     
     # Linker options
     target_link_options(${target_name} PRIVATE 
@@ -93,6 +121,11 @@ function(of_configure_platform target_name)
         rt udev fontconfig curl freeimage freetype
         pugixml uriparser z png crypto ssl glut dl pthread
     )
+
+    # ARM/RPi Specific Libraries
+    if(OF_PLATFORM MATCHES "linuxarm" OR OF_PLATFORM STREQUAL "linuxaarch64")
+         target_link_libraries(${target_name} PRIVATE GLESv1_CM GLESv2 EGL)
+    endif()
     
     # FMOD (audio library) - dynamic linking
     set(FMOD_LIB "${OF_ROOT}/libs/fmod/lib/${OF_PLATFORM}/libfmod.so")

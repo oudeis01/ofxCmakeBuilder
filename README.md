@@ -4,7 +4,7 @@
 
 ## Features
 
-- **Cross-platform**: Works on `linux64` and `macOS` (macOS not tested, Windows support is currently WIP)
+- **Cross-platform**: Works on `linux64` and `Raspberry Pi (armv7l, aarch64)` (RPi, macOS, Windows are currently untested/WIP)
 - **Addon support**: Automatically detects and configures addons with their dependencies, by parsing the conventional addons.make
 - **Platform-specific exclusions**: Properly handles platform-specific source/include exclusions from `addon_config.mk`
 - **Dynamic dependency detection**: Automatically finds and links system libraries and frameworks
