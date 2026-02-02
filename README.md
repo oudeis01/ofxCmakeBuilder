@@ -4,7 +4,7 @@
 
 ## Features
 
-- **Cross-platform**: Works on `linux64` and `macOS` (Windows support is currently WIP)
+- **Cross-platform**: Works on `linux64` and `macOS` (macOS not tested, Windows support is currently WIP)
 - **Addon support**: Automatically detects and configures addons with their dependencies, by parsing the conventional addons.make
 - **Platform-specific exclusions**: Properly handles platform-specific source/include exclusions from `addon_config.mk`
 - **Dynamic dependency detection**: Automatically finds and links system libraries and frameworks
@@ -59,17 +59,22 @@ Example:
 
 ### File Structure
 ```
+# the files will be copied in the following structure, when running the installation script.
+
 OF_ROOT/
-├── cmake-scripts/
-│   ├── generateCMake.sh
-│   ├── buildAll.sh
-│   └── buildAndTestAll.sh
-├── cmake-modules/
-│   ├── platform/
-│   │   ├── Darwin.cmake
-│   │   ├── Linux.cmake
-│   │   └── Windows.cmake
-│   └── openFrameworks.cmake
+└── scripts
+    └── cmake-scripts/
+        ├── generateCMake.sh
+        ├── buildAll.sh
+        └── buildAndTestAll.sh
+└── libs
+    └── openFrameworks
+        └── cmake
+            ├── platform
+            │   ├── Darwin.cmake
+            │   ├── Linux.cmake
+            │   └── Windows.cmake
+            └── openFrameworks.cmake
 ```
 
 ## Usage
@@ -86,9 +91,10 @@ scripts/cmake-scripts/generateCMake.sh examples/3d/3DPrimitivesExample
 
 ```bash
 cd examples/3d/3DPrimitivesExample
-mkdir build && cd build
-cmake .. && make -j4
-make run
+cmake -B build
+cmake --build build --parallel
+# or if you want to limit the resource
+cmake --build build -j8
 ```
 
 For all examples:
@@ -134,6 +140,9 @@ The system automatically parses `addon_config.mk` files and handles:
 - Framework linking (macOS)
 - PKG-config integration
 
+The addon_config.mk parsing was tested only with the officially bundled addons.
+For future implementation, a CMakeLists.txt template for addons can be discussed.
+
 ### Build Optimizations
 
 - Dependency caching for faster rebuilds
@@ -154,7 +163,8 @@ You can control this behavior with the following options:
 To force a rebuild of the global core library (e.g. after updating OF source):
 
 ```bash
-cmake -DOF_FORCE_BUILD_CORE=ON ..
+# locate your project's root, then
+cmake -B build -DOF_FORCE_BUILD_CORE=ON
 ```
 
 #### 2. Project-Specific Core (Local Scope)
@@ -163,6 +173,8 @@ To build the core only for *this* project without affecting the global shared li
 ```bash
 cmake -DOF_CORE_SCOPE=LOCAL ..
 ```
+
+This will produce and link the openFrameworks.a inside the project's build directory.
 
 ### Debug Output
 
