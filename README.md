@@ -1,6 +1,6 @@
-# ofxCmakeBuilder
+# ofCmakeBuildSystem 
 
-**ofxCmakeBuilder** provides a cross-platform CMake build system for openFrameworks projects. It includes improved support for addons, automatic dependency detection, and comprehensive build automation script for built-in examples.
+**ofCmakeBuildSystem** provides a cross-platform CMake build system for openFrameworks projects. It includes improved support for addons, automatic dependency detection, and comprehensive build automation script for built-in examples.
 
 ## Features
 
@@ -186,7 +186,7 @@ cmake .. -DCMAKE_VERBOSE_MAKEFILE=ON
 
 ### Build System Updates
 
-If you update the ofxCmakeBuilder source, reinstall with:
+If you update the ofCmakeBuildSystem source, reinstall with:
 
 ```bash
 ./install-cmake-system.sh /path/to/openframeworks

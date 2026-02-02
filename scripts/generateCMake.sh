@@ -1,8 +1,6 @@
 #!/bin/bash
 
 # CMakeLists.txt Generator for openFrameworks Projects
-# Cross-platform compatible version with improved macOS support
-# This script generates optimized CMakeLists.txt files for existing projects
 
 export LC_ALL=C
 
